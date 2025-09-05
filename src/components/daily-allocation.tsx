@@ -116,6 +116,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
         form.getValues("totalVolume"),
         allocationResult
       );
+      setAllocationResult(null);
     }
   }
 
