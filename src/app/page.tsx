@@ -1,3 +1,9 @@
+import CubeSplitterApp from "@/components/cube-splitter-app";
+
 export default function Home() {
-  return <></>;
+  return (
+    <main>
+      <CubeSplitterApp />
+    </main>
+  );
 }
