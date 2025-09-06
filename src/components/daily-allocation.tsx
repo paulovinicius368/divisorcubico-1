@@ -12,7 +12,14 @@ import {
   BarChart2,
   Save,
 } from "lucide-react";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
 import { allocateHourlyVolume } from "@/ai/flows/allocate-hourly-volume";
 import { Button } from "@/components/ui/button";
@@ -93,6 +100,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
     try {
       const result = await allocateHourlyVolume({
         totalDailyVolume: values.totalVolume,
+        well: values.well,
       });
       setAllocationResult(result);
     } catch (e) {
@@ -176,6 +184,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>

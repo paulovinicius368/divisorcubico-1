@@ -15,8 +15,15 @@ const AllocateHourlyVolumeInputSchema = z.object({
   totalDailyVolume: z
     .number()
     .describe('The total volume in cubic meters for the entire day.'),
+  well: z
+    .string()
+    .describe(
+      'The well from which the water is being drawn (e.g., MAAG, PECUÁRIA, TCHE).'
+    ),
 });
-export type AllocateHourlyVolumeInput = z.infer<typeof AllocateHourlyVolumeInputSchema>;
+export type AllocateHourlyVolumeInput = z.infer<
+  typeof AllocateHourlyVolumeInputSchema
+>;
 
 const AllocateHourlyVolumeOutputSchema = z.array(
   z.object({
@@ -26,7 +33,9 @@ const AllocateHourlyVolumeOutputSchema = z.array(
       .describe('The allocated volume in cubic meters for this hour.'),
   })
 );
-export type AllocateHourlyVolumeOutput = z.infer<typeof AllocateHourlyVolumeOutputSchema>;
+export type AllocateHourlyVolumeOutput = z.infer<
+  typeof AllocateHourlyVolumeOutputSchema
+>;
 
 export async function allocateHourlyVolume(
   input: AllocateHourlyVolumeInput
@@ -38,13 +47,24 @@ const prompt = ai.definePrompt({
   name: 'allocateHourlyVolumePrompt',
   input: {schema: AllocateHourlyVolumeInputSchema},
   output: {schema: AllocateHourlyVolumeOutputSchema},
-  prompt: `You are a resource allocation expert. Given the total daily volume, allocate it to each hour of the day (0-23).
+  prompt: `You are a resource allocation expert. Given the total daily volume and the selected well, allocate it to each hour of the day.
 
-The volume for each hour should vary, and the total volume across all hours must equal the totalDailyVolume.
+The total volume across all hours must equal the totalDailyVolume.
 
 Total Daily Volume: {{{totalDailyVolume}}}
+Well: {{{well}}}
 
-Ensure the response is a JSON array of objects. Each object should have "hour" (0-23) and "volume" keys.
+{{#if (eq well "MAAG")}}
+The allocation for the "MAAG" well must follow these specific rules:
+- The total volume must be distributed only between the hours of 6 (6:00) and 18 (18:59). All other hours (0-5 and 19-23) must have a volume of 0.
+- The hourly volume must be the same for the hours from 6 to 12.
+- The hourly volume for hours 13, 14, and 15 must be different from each other and from the 6-12 period.
+- The hourly volume for hours 16, 17, and 18 must be the same as the volume for hour 15.
+{{else}}
+The volume for each hour should vary throughout the 24 hours (0-23) based on typical daily water usage patterns.
+{{/if}}
+
+Ensure the response is a JSON array of 24 objects. Each object must have "hour" (0-23) and "volume" keys.
 `,
   config: {
     safetySettings: [
