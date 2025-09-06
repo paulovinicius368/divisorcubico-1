@@ -12,16 +12,7 @@ import {
   BarChart2,
   Save,
 } from "lucide-react";
-
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
-
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
 import { allocateHourlyVolume } from "@/ai/flows/allocate-hourly-volume";
 import { Button } from "@/components/ui/button";
@@ -43,12 +34,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -65,13 +58,15 @@ const formSchema = z.object({
   totalVolume: z.coerce
     .number({ invalid_type_error: "Por favor, insira um número." })
     .positive("O volume deve ser um número positivo."),
+  well: z.string({ required_error: "Por favor, selecione um poço." }),
 });
 
 type DailyAllocationProps = {
   onSave: (
     date: string,
     total: number,
-    allocation: AllocateHourlyVolumeOutput
+    allocation: AllocateHourlyVolumeOutput,
+    well: string
   ) => void;
 };
 
@@ -114,9 +109,11 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
       onSave(
         dateString,
         form.getValues("totalVolume"),
-        allocationResult
+        allocationResult,
+        form.getValues("well")
       );
       setAllocationResult(null);
+      form.reset({ totalVolume: 1000, well: undefined });
     }
   }
 
@@ -126,7 +123,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
       color: "hsl(var(--primary))",
     },
   };
-  
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
       <Card className="lg:col-span-2">
@@ -140,7 +137,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label>Data da Alocação</Label>
+                <FormLabel>Data da Alocação</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -169,6 +166,32 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
                   </PopoverContent>
                 </Popover>
               </div>
+
+              <FormField
+                control={form.control}
+                name="well"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Poços de Captação</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um poço" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="MAAG">MAAG</SelectItem>
+                        <SelectItem value="PECUÁRIA">PECUÁRIA</SelectItem>
+                        <SelectItem value="TCHE">TCHE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -251,11 +274,15 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
                     axisLine={false}
                     tickFormatter={(value) => `${value}`}
                   />
-                   <Tooltip
+                  <Tooltip
                     cursor={{ fill: "hsl(var(--accent))" }}
                     content={<ChartTooltipContent />}
                   />
-                  <Bar dataKey="volume" fill="hsl(var(--primary))" radius={4} />
+                  <Bar
+                    dataKey="volume"
+                    fill="hsl(var(--primary))"
+                    radius={4}
+                  />
                 </BarChart>
               </ChartContainer>
 

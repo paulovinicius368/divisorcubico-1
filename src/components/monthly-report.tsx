@@ -35,14 +35,14 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
   const handleExport = () => {
     if (typeof window === "undefined") return;
 
-    const headers = ["Data", "Hora", "Volume (m³)"];
+    const headers = ["Data", "Poço", "Hora", "Volume (m³)"];
     const rows = [headers];
 
     Object.entries(data)
       .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-      .forEach(([date, { allocation }]) => {
+      .forEach(([date, { allocation, well }]) => {
         allocation.forEach(({ hour, volume }) => {
-          rows.push([date, hour.toString(), volume.toFixed(2)]);
+          rows.push([date, well, hour.toString(), volume.toFixed(2)]);
         });
       });
 
@@ -93,16 +93,21 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
         ) : (
           <Accordion type="single" collapsible className="w-full">
             {sortedDays.map((day) => {
-              const { total, allocation } = data[day];
+              const { total, allocation, well } = data[day];
               const formattedDate = format(new Date(day + 'T00:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
               return (
                 <AccordionItem value={day} key={day}>
                   <AccordionTrigger>
-                    <div className="flex w-full justify-between pr-4">
+                    <div className="flex w-full items-center justify-between pr-4">
                       <span>{formattedDate}</span>
-                      <span className="font-mono text-muted-foreground">
-                        Total: {total} m³
-                      </span>
+                      <div className="flex items-center gap-4">
+                        <span className="font-mono text-sm text-muted-foreground">
+                          Poço: {well}
+                        </span>
+                        <span className="font-mono text-muted-foreground">
+                          Total: {total} m³
+                        </span>
+                      </div>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>

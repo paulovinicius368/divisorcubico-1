@@ -13,6 +13,7 @@ export type MonthlyData = Record<
   {
     total: number;
     allocation: AllocateHourlyVolumeOutput;
+    well: string;
   }
 >;
 
@@ -23,11 +24,12 @@ export default function CubeSplitterApp() {
   const handleSaveDay = (
     date: string,
     total: number,
-    allocation: AllocateHourlyVolumeOutput
+    allocation: AllocateHourlyVolumeOutput,
+    well: string
   ) => {
     setMonthlyData((prev) => ({
       ...prev,
-      [date]: { total, allocation },
+      [date]: { total, allocation, well },
     }));
     toast({
       title: "Salvo com sucesso!",
