@@ -131,6 +131,12 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
       color: "hsl(var(--primary))",
     },
   };
+  
+  const isMaagWell = form.getValues("well") === "MAAG";
+  const displayAllocation =
+    allocationResult && isMaagWell
+      ? allocationResult.filter((item) => item.volume > 0)
+      : allocationResult;
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -258,17 +264,17 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
             </div>
           )}
           {error && <p className="text-destructive">{error}</p>}
-          {!isLoading && !allocationResult && !error && (
+          {!isLoading && !displayAllocation && !error && (
             <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
               <p className="text-muted-foreground">
                 Os resultados aparecerão aqui.
               </p>
             </div>
           )}
-          {allocationResult && (
+          {displayAllocation && (
             <div className="space-y-6">
               <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                <BarChart data={allocationResult} accessibilityLayer>
+                <BarChart data={displayAllocation} accessibilityLayer>
                   <XAxis
                     dataKey="hour"
                     tickLine={false}
@@ -303,7 +309,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allocationResult.map(({ hour, volume }) => (
+                  {displayAllocation.map(({ hour, volume }) => (
                     <TableRow key={hour}>
                       <TableCell>{`${hour}:00 - ${hour + 1}:00`}</TableCell>
                       <TableCell className="text-right">
