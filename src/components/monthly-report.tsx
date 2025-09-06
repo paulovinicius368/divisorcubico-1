@@ -15,6 +15,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -26,13 +32,20 @@ import { Download, FileSpreadsheet } from "lucide-react";
 import type { MonthlyData } from "./cube-splitter-app";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 type MonthlyReportProps = {
   data: MonthlyData;
 };
 
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
+
 export default function MonthlyReport({ data }: MonthlyReportProps) {
-  const handleExport = () => {
+  const handleExport = (format: "csv" | "xlsx" | "pdf") => {
     if (typeof window === "undefined") return;
 
     const dataByWell: Record<string, typeof data> = {};
@@ -46,31 +59,60 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
 
     for (const well in dataByWell) {
       const headers = ["Data", "Poço", "Hora", "Volume (m³)"];
-      const rows = [headers];
-
-      Object.entries(dataByWell[well])
+      const rows = Object.entries(dataByWell[well])
         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-        .forEach(([date, { allocation }]) => {
-          allocation.forEach(({ hour, volume }) => {
-            rows.push([date, well, hour.toString(), volume.toFixed(2)]);
-          });
-        });
+        .flatMap(([date, { allocation }]) =>
+          allocation.map(({ hour, volume }) => [
+            date,
+            well,
+            hour.toString(),
+            volume.toFixed(2),
+          ])
+        );
 
-      const csvContent = rows.map((e) => e.join(",")).join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute(
-        "download",
-        `relatorio_${well}_${new Date().toISOString().slice(0, 10)}.csv`
-      );
-      link.style.visibility = "hidden";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const today = new Date().toISOString().slice(0, 10);
+      const filename = `relatorio_${well}_${today}`;
+
+      if (format === "csv") {
+        const csvContent = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        downloadBlob(blob, `${filename}.csv`);
+      } else if (format === "xlsx") {
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório");
+        const xlsxBuffer = XLSX.write(workbook, {
+          bookType: "xlsx",
+          type: "array",
+        });
+        const blob = new Blob([xlsxBuffer], {
+          type: "application/octet-stream",
+        });
+        downloadBlob(blob, `${filename}.xlsx`);
+      } else if (format === "pdf") {
+        const doc = new jsPDF() as jsPDFWithAutoTable;
+        doc.autoTable({
+          head: [headers],
+          body: rows,
+          didDrawPage: (data) => {
+            doc.text(`Relatório Poço: ${well}`, data.settings.margin.left, 15);
+          }
+        });
+        doc.save(`${filename}.pdf`);
+      }
     }
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const sortedDays = Object.keys(data).sort(
@@ -86,10 +128,25 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
             Resumo das alocações diárias salvas.
           </CardDescription>
         </div>
-        <Button onClick={handleExport} disabled={sortedDays.length === 0}>
-          <Download className="mr-2 h-4 w-4" />
-          Exportar CSV
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button disabled={sortedDays.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Relatório
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onSelect={() => handleExport("csv")}>
+              Exportar como CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleExport("xlsx")}>
+              Exportar como XLSX
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleExport("pdf")}>
+              Exportar como PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardHeader>
       <CardContent>
         {sortedDays.length === 0 ? (
@@ -106,7 +163,11 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
           <Accordion type="single" collapsible className="w-full">
             {sortedDays.map((day) => {
               const { total, allocation, well } = data[day];
-              const formattedDate = format(new Date(day + 'T00:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+              const formattedDate = format(
+                new Date(day + "T00:00:00"),
+                "EEEE, dd 'de' MMMM 'de' yyyy",
+                { locale: ptBR }
+              );
               return (
                 <AccordionItem value={day} key={day}>
                   <AccordionTrigger>
@@ -135,7 +196,9 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
                       <TableBody>
                         {allocation.map(({ hour, volume }) => (
                           <TableRow key={hour}>
-                            <TableCell>{`${hour}:00 - ${hour + 1}:00`}</TableCell>
+                            <TableCell>{`${hour}:00 - ${
+                              hour + 1
+                            }:00`}</TableCell>
                             <TableCell className="text-right font-mono">
                               {volume.toFixed(2)}
                             </TableCell>
