@@ -62,12 +62,14 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
       const rows = Object.entries(dataByWell[well])
         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
         .flatMap(([date, { allocation }]) =>
-          allocation.map(({ hour, volume }) => [
-            date,
-            well,
-            hour.toString(),
-            volume.toFixed(2),
-          ])
+          allocation
+            .filter((item) => item.volume > 0)
+            .map(({ hour, volume }) => [
+              date,
+              well,
+              `${hour}:00`,
+              volume.toFixed(2),
+            ])
         );
 
       const today = new Date().toISOString().slice(0, 10);
@@ -194,16 +196,18 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {allocation.map(({ hour, volume }) => (
-                          <TableRow key={hour}>
-                            <TableCell>{`${hour}:00 - ${
-                              hour + 1
-                            }:00`}</TableCell>
-                            <TableCell className="text-right font-mono">
-                              {volume.toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {allocation
+                          .filter((item) => item.volume > 0)
+                          .map(({ hour, volume }) => (
+                            <TableRow key={hour}>
+                              <TableCell>{`${hour}:00 - ${
+                                hour + 1
+                              }:00`}</TableCell>
+                              <TableCell className="text-right font-mono">
+                                {volume.toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
                       </TableBody>
                     </Table>
                   </AccordionContent>
