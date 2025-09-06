@@ -56,7 +56,8 @@ Well: {{{well}}}
 
 {{#if isMaagWell}}
 The allocation for the "MAAG" well must follow these specific rules:
-- The total volume must be distributed only between the hours of 6 (6:00) and 18 (18:59). All other hours (0-5 and 19-23) must have a volume of 0.
+- The total volume must be distributed only between the hours of 6 (6:00) and 18 (18:59).
+- The volume for all other hours (0-5 and 19-23) must be explicitly set to 0.
 - The hourly volume must be the same for the hours from 6 to 12.
 - The hourly volume for hours 13, 14, and 15 must be different from each other and from the 6-12 period.
 - The hourly volume for hours 16, 17, and 18 must be the same as the volume for hour 15.
