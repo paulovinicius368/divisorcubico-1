@@ -35,30 +35,42 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
   const handleExport = () => {
     if (typeof window === "undefined") return;
 
-    const headers = ["Data", "Poço", "Hora", "Volume (m³)"];
-    const rows = [headers];
+    const dataByWell: Record<string, typeof data> = {};
+    for (const date in data) {
+      const { well } = data[date];
+      if (!dataByWell[well]) {
+        dataByWell[well] = {};
+      }
+      dataByWell[well][date] = data[date];
+    }
 
-    Object.entries(data)
-      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-      .forEach(([date, { allocation, well }]) => {
-        allocation.forEach(({ hour, volume }) => {
-          rows.push([date, well, hour.toString(), volume.toFixed(2)]);
+    for (const well in dataByWell) {
+      const headers = ["Data", "Poço", "Hora", "Volume (m³)"];
+      const rows = [headers];
+
+      Object.entries(dataByWell[well])
+        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+        .forEach(([date, { allocation }]) => {
+          allocation.forEach(({ hour, volume }) => {
+            rows.push([date, well, hour.toString(), volume.toFixed(2)]);
+          });
         });
-      });
 
-    const csvContent = rows.map((e) => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `relatorio_cubesplitter_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const csvContent = rows.map((e) => e.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `relatorio_${well}_${new Date().toISOString().slice(0, 10)}.csv`
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const sortedDays = Object.keys(data).sort(
