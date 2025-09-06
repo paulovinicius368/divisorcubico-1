@@ -45,7 +45,7 @@ export async function allocateHourlyVolume(
 
 const prompt = ai.definePrompt({
   name: 'allocateHourlyVolumePrompt',
-  input: {schema: AllocateHourlyVolumeInputSchema},
+  input: {schema: z.any()},
   output: {schema: AllocateHourlyVolumeOutputSchema},
   prompt: `You are a resource allocation expert. Given the total daily volume and the selected well, allocate it to each hour of the day.
 
@@ -54,7 +54,7 @@ The total volume across all hours must equal the totalDailyVolume.
 Total Daily Volume: {{{totalDailyVolume}}}
 Well: {{{well}}}
 
-{{#if (eq well "MAAG")}}
+{{#if isMaagWell}}
 The allocation for the "MAAG" well must follow these specific rules:
 - The total volume must be distributed only between the hours of 6 (6:00) and 18 (18:59). All other hours (0-5 and 19-23) must have a volume of 0.
 - The hourly volume must be the same for the hours from 6 to 12.
@@ -95,7 +95,10 @@ const allocateHourlyVolumeFlow = ai.defineFlow(
     outputSchema: AllocateHourlyVolumeOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await prompt({
+      ...input,
+      isMaagWell: input.well === 'MAAG',
+    });
     return output!;
   }
 );
