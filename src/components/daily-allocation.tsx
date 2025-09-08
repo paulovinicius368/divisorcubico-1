@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Calendar as CalendarIcon,
@@ -60,6 +60,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
 import { ChartContainer, ChartTooltipContent } from "./ui/chart";
+import type { MonthlyData } from "./cube-splitter-app";
 
 const formSchema = z.object({
   hodometroAnterior: z.coerce
@@ -69,7 +70,12 @@ const formSchema = z.object({
     .number({ invalid_type_error: "Por favor, insira um número." })
     .min(0, "O hodômetro deve ser um número positivo."),
   well: z.string({ required_error: "Por favor, selecione um poço." }),
-}).refine(data => data.hodometroAtual > data.hodometroAnterior, {
+}).refine(data => {
+  if (data.hodometroAnterior > 0) {
+    return data.hodometroAtual > data.hodometroAnterior;
+  }
+  return true;
+}, {
   message: "Hodômetro atual deve ser maior que o anterior.",
   path: ["hodometroAtual"],
 });
@@ -82,9 +88,10 @@ type DailyAllocationProps = {
     well: string,
     hodometro: number
   ) => void;
+  monthlyData: MonthlyData;
 };
 
-export default function DailyAllocation({ onSave }: DailyAllocationProps) {
+export default function DailyAllocation({ onSave, monthlyData }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     new Date()
   );
@@ -107,8 +114,21 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
   const hodometroAtual = watch("hodometroAtual");
 
   useEffect(() => {
-    const vol = hodometroAtual - hodometroAnterior;
-    setTotalVolume(vol > 0 ? vol : 0);
+    if (selectedDate) {
+      const previousDay = subDays(selectedDate, 1);
+      const previousDayString = format(previousDay, "yyyy-MM-dd");
+      const previousDayData = monthlyData[previousDayString];
+      
+      const previousOdometer = previousDayData?.hodometro ?? 0;
+      setValue("hodometroAnterior", previousOdometer, { shouldValidate: true });
+    }
+  }, [selectedDate, monthlyData, setValue]);
+
+  useEffect(() => {
+    const vol = (hodometroAnterior > 0 && hodometroAtual > hodometroAnterior) 
+      ? hodometroAtual - hodometroAnterior
+      : 0;
+    setTotalVolume(vol);
   }, [hodometroAnterior, hodometroAtual]);
 
 
@@ -117,10 +137,10 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
     setAllocationResult(null);
     setError(null);
 
-    const calculatedVolume = values.hodometroAtual - values.hodometroAnterior;
+    const calculatedVolume = totalVolume;
 
     if (calculatedVolume <= 0) {
-      setError("A diferença dos hodômetros deve resultar em um volume positivo.");
+      setError("O volume diário total deve ser positivo para gerar a alocação.");
       setIsLoading(false);
       return;
     }
@@ -156,10 +176,14 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
       setAllocationResult(null);
       form.reset({
         well: currentWell,
+        hodometroAnterior: 0, 
         hodometroAtual: 0,
-        hodometroAnterior: currentHodometroAtual, // Pass current to previous
       });
-      setValue("hodometroAnterior", currentHodometroAtual, { shouldValidate: true });
+
+      // Advance date to next day
+      const nextDay = new Date(selectedDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setSelectedDate(nextDay);
     }
   }
 
@@ -293,7 +317,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
                     readOnly
                     disabled
                     value={totalVolume.toFixed(2)}
-                    className="cursor-default bg-muted/50"
+                    className="cursor-default bg-muted/50 font-bold"
                   />
                 </FormControl>
                 <FormMessage />
@@ -400,7 +424,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
           <CardFooter>
             <Button onClick={handleSave} className="w-full">
               <Save className="mr-2 h-4 w-4" />
-              Salvar no Relatório Mensal
+              Salvar e Avançar para o Próximo Dia
             </Button>
           </CardFooter>
         )}

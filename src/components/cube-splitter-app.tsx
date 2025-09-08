@@ -58,7 +58,7 @@ export default function CubeSplitterApp() {
           <TabsTrigger value="monthly">Relatório Mensal</TabsTrigger>
         </TabsList>
         <TabsContent value="daily" className="pt-6">
-          <DailyAllocation onSave={handleSaveDay} />
+          <DailyAllocation onSave={handleSaveDay} monthlyData={monthlyData} />
         </TabsContent>
         <TabsContent value="monthly" className="pt-6">
           <MonthlyReport data={monthlyData} />
