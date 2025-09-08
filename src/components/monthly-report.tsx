@@ -58,15 +58,16 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
     }
 
     for (const well in dataByWell) {
-      const headers = ["Data", "Poço", "Hora", "Volume (m³)"];
+      const headers = ["Data", "Poço", "Hodômetro", "Hora", "Volume (m³)"];
       const rows = Object.entries(dataByWell[well])
         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-        .flatMap(([date, { allocation }]) =>
+        .flatMap(([date, { allocation, hodometro }]) =>
           allocation
             .filter((item) => item.volume > 0)
             .map(({ hour, volume }) => [
               date,
               well,
+              hodometro,
               `${hour}:00`,
               volume.toFixed(2),
             ])
@@ -164,7 +165,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
         ) : (
           <Accordion type="single" collapsible className="w-full">
             {sortedDays.map((day) => {
-              const { total, allocation, well } = data[day];
+              const { total, allocation, well, hodometro } = data[day];
               const formattedDate = format(
                 new Date(day + "T00:00:00"),
                 "EEEE, dd 'de' MMMM 'de' yyyy",
@@ -178,6 +179,9 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
                       <div className="flex items-center gap-4">
                         <span className="font-mono text-sm text-muted-foreground">
                           Poço: {well}
+                        </span>
+                         <span className="font-mono text-sm text-muted-foreground">
+                          Hodômetro: {hodometro}
                         </span>
                         <span className="font-mono text-muted-foreground">
                           Total: {total} m³

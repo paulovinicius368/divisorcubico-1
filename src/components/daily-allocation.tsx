@@ -11,6 +11,7 @@ import {
   Loader2,
   BarChart2,
   Save,
+  Gauge,
 } from "lucide-react";
 import {
   Bar,
@@ -66,6 +67,9 @@ const formSchema = z.object({
     .number({ invalid_type_error: "Por favor, insira um número." })
     .positive("O volume deve ser um número positivo."),
   well: z.string({ required_error: "Por favor, selecione um poço." }),
+  hodometro: z.coerce
+    .number({ invalid_type_error: "Por favor, insira um número." })
+    .positive("O hodômetro deve ser um número positivo."),
 });
 
 type DailyAllocationProps = {
@@ -73,7 +77,8 @@ type DailyAllocationProps = {
     date: string,
     total: number,
     allocation: AllocateHourlyVolumeOutput,
-    well: string
+    well: string,
+    hodometro: number
   ) => void;
 };
 
@@ -118,10 +123,11 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
         dateString,
         form.getValues("totalVolume"),
         allocationResult,
-        form.getValues("well")
+        form.getValues("well"),
+        form.getValues("hodometro")
       );
       setAllocationResult(null);
-      form.reset({ totalVolume: 1000, well: undefined });
+      form.reset({ totalVolume: 1000, well: undefined, hodometro: undefined });
     }
   }
 
@@ -144,7 +150,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
         <CardHeader>
           <CardTitle>Configurar Alocação</CardTitle>
           <CardDescription>
-            Insira o volume total e a data para gerar a alocação horária.
+            Insira os dados para gerar a alocação horária.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -203,6 +209,24 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
                         <SelectItem value="TCHE">TCHE</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="hodometro"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hodômetro</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Ex: 12345"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
