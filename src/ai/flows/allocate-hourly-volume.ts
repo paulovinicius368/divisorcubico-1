@@ -45,7 +45,7 @@ export async function allocateHourlyVolume(
 
 const prompt = ai.definePrompt({
   name: 'allocateHourlyVolumePrompt',
-  input: {schema: z.any()},
+  input: {schema: AllocateHourlyVolumeInputSchema},
   output: {schema: AllocateHourlyVolumeOutputSchema},
   prompt: `You are a resource allocation expert. Given the total daily volume and the selected well, create a JSON array of 24 objects representing each hour of the day (0-23) and its allocated water volume.
 
@@ -54,7 +54,7 @@ The final response must be a single JSON array of 24 objects. Each object must h
 Total Daily Volume: {{{totalDailyVolume}}}
 Well: {{{well}}}
 
-For the selected well, the volume for each hour should vary throughout the 24 hours (0-23) based on typical daily water usage patterns, and the sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'.
+The volume for each hour should vary throughout the 24 hours (0-23) based on the typical daily water usage patterns for the specified well. The sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'. The volume for each hour must not be the same. Distribute the volume only during the operating hours of the well, leaving others as zero.
 `,
   config: {
     safetySettings: [
@@ -78,87 +78,6 @@ For the selected well, the volume for each hour should vary throughout the 24 ho
   },
 });
 
-function allocateMaagVolume(
-  totalDailyVolume: number
-): AllocateHourlyVolumeOutput {
-  // 1. Generate 5 random values for A, B, C, D, E
-  let a = Math.random();
-  let b = Math.random();
-  let c = Math.random();
-  let d = Math.random();
-  let e = Math.random();
-
-  // 2. Calculate the sum of these random values
-  const randomSum = a + b + c + d + e;
-
-  // 3. Scale these values so their sum equals totalDailyVolume
-  const scale = totalDailyVolume / randomSum;
-  const valueA = a * scale;
-  const valueB = b * scale;
-  const valueC = c * scale;
-  const valueD = d * scale;
-  const valueE = e * scale;
-
-  // 4. Build the 24-hour allocation array
-  const allocation: AllocateHourlyVolumeOutput = [];
-  for (let hour = 0; hour < 24; hour++) {
-    let volume = 0;
-    if (hour >= 6 && hour <= 12) {
-      volume = valueA; // Period 1 (7 hours)
-    } else if (hour === 13) {
-      volume = valueB;
-    } else if (hour === 14) {
-      volume = valueC;
-    } else if (hour === 15) {
-      volume = valueD;
-    } else if (hour >= 16 && hour <= 18) {
-      volume = valueE; // Period 3 (3 hours)
-    }
-    allocation.push({ hour, volume: parseFloat(volume.toFixed(2)) });
-  }
-
-  return allocation;
-}
-
-function allocatePecuariaVolume(
-  totalDailyVolume: number
-): AllocateHourlyVolumeOutput {
-  // 1. Generate 7 random values for A, B, C, D, E, F, G
-  const randomValues = Array.from({ length: 7 }, () => Math.random());
-  
-  // 2. Calculate the sum of these random values
-  const randomSum = randomValues.reduce((sum, val) => sum + val, 0);
-
-  // 3. Scale these values so their sum equals totalDailyVolume
-  const scale = totalDailyVolume / randomSum;
-  const [valueA, valueB, valueC, valueD, valueE, valueF, valueG] = randomValues.map(val => val * scale);
-
-  // 4. Build the 24-hour allocation array
-  const allocation: AllocateHourlyVolumeOutput = [];
-  for (let hour = 0; hour < 24; hour++) {
-    let volume = 0;
-    if (hour >= 6 && hour <= 12) {
-      volume = valueA; // Period 1 (7 hours)
-    } else if (hour === 13) {
-      volume = valueB;
-    } else if (hour === 14) {
-      volume = valueC;
-    } else if (hour === 15) {
-      volume = valueD;
-    } else if (hour === 16) {
-      volume = valueE;
-    } else if (hour === 17) {
-      volume = valueF;
-    } else if (hour >= 18 && hour <= 21) {
-      volume = valueG; // Period 3 (4 hours)
-    }
-    allocation.push({ hour, volume: parseFloat(volume.toFixed(2)) });
-  }
-
-  return allocation;
-}
-
-
 const allocateHourlyVolumeFlow = ai.defineFlow(
   {
     name: 'allocateHourlyVolumeFlow',
@@ -166,16 +85,7 @@ const allocateHourlyVolumeFlow = ai.defineFlow(
     outputSchema: AllocateHourlyVolumeOutputSchema,
   },
   async input => {
-    if (input.well === 'MAAG') {
-      // Use deterministic TypeScript logic for MAAG well
-      return allocateMaagVolume(input.totalDailyVolume);
-    } else if (input.well === 'PECUÁRIA') {
-      // Use deterministic TypeScript logic for PECUÁRIA well
-      return allocatePecuariaVolume(input.totalDailyVolume);
-    } else {
-      // Use AI for other wells
-      const {output} = await prompt(input);
-      return output!;
-    }
+    const {output} = await prompt(input);
+    return output!;
   }
 );
