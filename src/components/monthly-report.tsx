@@ -38,14 +38,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Download, FileSpreadsheet, Pencil, Trash2, X } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Trash2, X, Calendar as CalendarIcon } from "lucide-react";
 import type { MonthlyData } from "./cube-splitter-app";
-import { format, parseISO, getYear, getMonth } from "date-fns";
+import { format, parseISO, getYear, getMonth, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 type MonthlyReportProps = {
   data: MonthlyData;
@@ -62,6 +65,8 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
   const [filterWell, setFilterWell] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string>("");
   const [filterMonth, setFilterMonth] = useState<string>("");
+  const [filterStartDate, setFilterStartDate] = useState<Date | undefined>();
+  const [filterEndDate, setFilterEndDate] = useState<Date | undefined>();
 
   const sortedKeys = useMemo(() => Object.keys(data).sort(
     (a, b) => {
@@ -89,14 +94,19 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     
     const fKeys = sortedKeys.filter(key => {
       const item = data[key];
-      const itemDate = parseISO(item.date);
+      const itemDate = startOfDay(parseISO(item.date));
       const itemYear = getYear(itemDate).toString();
       const itemMonth = (getMonth(itemDate) + 1).toString().padStart(2, '0');
+
+      const startDate = filterStartDate ? startOfDay(filterStartDate) : null;
+      const endDate = filterEndDate ? startOfDay(filterEndDate) : null;
 
       return (
         (filterWell ? item.well === filterWell : true) &&
         (filterYear ? itemYear === filterYear : true) &&
-        (filterMonth ? itemMonth === filterMonth : true)
+        (filterMonth ? itemMonth === filterMonth : true) &&
+        (startDate ? itemDate >= startDate : true) &&
+        (endDate ? itemDate <= endDate : true)
       );
     });
 
@@ -108,12 +118,14 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
       },
       filteredKeys: fKeys,
     };
-  }, [sortedKeys, data, filterWell, filterYear, filterMonth]);
+  }, [sortedKeys, data, filterWell, filterYear, filterMonth, filterStartDate, filterEndDate]);
   
   const clearFilters = () => {
     setFilterWell("");
     setFilterYear("");
     setFilterMonth("");
+    setFilterStartDate(undefined);
+    setFilterEndDate(undefined);
   };
 
   const handleExport = (formatType: "csv" | "xlsx" | "pdf") => {
@@ -268,7 +280,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
   };
 
   const deleteCandidateDate = deleteCandidate ? data[deleteCandidate]?.date : null;
-  const hasFilters = filterWell || filterYear || filterMonth;
+  const hasFilters = filterWell || filterYear || filterMonth || filterStartDate || filterEndDate;
 
   return (
     <>
@@ -278,7 +290,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
               <div>
                 <CardTitle>Relatório Mensal</CardTitle>
                 <CardDescription>
-                  Resumo das alocações diárias salvas. Filtre por poço, ano e mês.
+                  Resumo das alocações diárias salvas. Filtre por poço, ano, mês ou período.
                 </CardDescription>
               </div>
               <DropdownMenu>
@@ -304,7 +316,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
         </CardHeader>
         <CardContent>
           {sortedKeys.length > 0 && (
-            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-muted/50">
+            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/50">
                 <Select value={filterWell} onValueChange={setFilterWell}>
                   <SelectTrigger><SelectValue placeholder="Filtrar por poço" /></SelectTrigger>
                   <SelectContent>
@@ -323,7 +335,54 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                     {filterOptions.months.map(month => <SelectItem key={month} value={month}>{format(new Date(2000, Number(month) - 1), 'MMMM', {locale: ptBR})}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button variant="ghost" onClick={clearFilters} disabled={!hasFilters}>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !filterStartDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterStartDate ? format(filterStartDate, "dd/MM/yy") : <span>Data de Início</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filterStartDate}
+                      onSelect={setFilterStartDate}
+                      initialFocus
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !filterEndDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterEndDate ? format(filterEndDate, "dd/MM/yy") : <span>Data de Fim</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filterEndDate}
+                      onSelect={setFilterEndDate}
+                      disabled={{ before: filterStartDate }}
+                      initialFocus
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button variant="ghost" onClick={clearFilters} disabled={!hasFilters} className="md:col-span-3">
                   <X className="mr-2 h-4 w-4" />
                   Limpar Filtros
                 </Button>
