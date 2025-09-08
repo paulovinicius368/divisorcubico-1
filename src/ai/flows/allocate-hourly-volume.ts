@@ -49,7 +49,7 @@ const prompt = ai.definePrompt({
   output: {schema: AllocateHourlyVolumeOutputSchema},
   prompt: `You are a resource allocation expert. Given the total daily volume and the selected well, allocate it to each hour of the day.
 
-The total volume across all hours must equal the totalDailyVolume.
+IMPORTANT: The sum of the 'volume' for all 24 hours (from 0 to 23) in the output array MUST be exactly equal to the totalDailyVolume.
 
 Total Daily Volume: {{{totalDailyVolume}}}
 Well: {{{well}}}
