@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Calendar as CalendarIcon,
@@ -107,23 +107,27 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
     if (isEditing && editData) {
       const entryDate = parseISO(editData.date);
-      const previousDayData = Object.values(monthlyData)
-        .filter(d => d.well === editData.well && new Date(d.date) < entryDate)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        [0];
-
+      const previousDayDate = subDays(entryDate, 1);
+      const previousDayKey = `${format(previousDayDate, "yyyy-MM-dd")}-${editData.well}`;
+      const previousDayData = monthlyData[previousDayKey];
+      
+      reset({
+          well: editData.well,
+          hidrometroAtual: editData.hidrometro,
+          hidrometroAnterior: previousDayData?.hidrometro ?? 0,
+      });
       setSelectedDate(entryDate);
-      setValue("well", editData.well);
-      setValue("hidrometroAtual", editData.hidrometro);
-      setValue("hidrometroAnterior", previousDayData?.hidrometro ?? 0);
-    } else {
+
+    } else if (!isEditing) {
+        // Only reset if we are not in edit mode
         const well = getValues('well');
-        resetForm(well);
+        resetForm(well, selectedDate);
     }
-  }, [editKey, monthlyData, setValue, isEditing, getValues]);
+  }, [editKey, monthlyData, isEditing, reset]);
 
 
   useEffect(() => {
+    // This effect should only run when not in edit mode
     if (isEditing) return;
 
     if (selectedDate && currentWell) {
@@ -150,13 +154,14 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     }
   }, [hidrometroAtual, hidrometroAnterior, getValues]);
 
-  const resetForm = (well?: string) => {
+  const resetForm = (well?: string, date?: Date) => {
     reset({
       hidrometroAnterior: 0,
       hidrometroAtual: 0,
       well: well,
     });
     setTotalVolume(0);
+    setSelectedDate(date || new Date());
   };
 
 
@@ -181,7 +186,6 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
       if (isEditing) {
         onClearEdit();
-        setSelectedDate(new Date());
         resetForm(getValues('well'));
       } else {
         const nextDay = new Date(selectedDate);
@@ -235,7 +239,6 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
   const handleClearEdit = () => {
     onClearEdit();
-    setSelectedDate(new Date());
     resetForm(getValues('well'));
   };
 
