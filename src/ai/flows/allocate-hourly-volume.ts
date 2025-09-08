@@ -61,7 +61,7 @@ The allocation for the "MAAG" well must follow these specific rules:
 3.  **Hourly Distribution Rules:**
     - The hourly volumes for hours 6, 7, 8, 9, 10, 11, and 12 must all be the same value (let's call this Value A).
     - The hourly volumes for hours 13, 14, and 15 must be different from each other (let's call these Value B, Value C, Value D).
-    - The hourly volume for hours 16, 17, and 18 must all be the same value (let's call this Value E).
+    - The hourly volumes for hours 16, 17, and 18 must all be the same value (let's call this Value E).
 4.  **CRITICAL SUMMATION RULE:** The sum of the unique representative volumes MUST equal the 'totalDailyVolume'.
     - **Calculation:** (Value A) + (Value B) + (Value C) + (Value D) + (Value E) = totalDailyVolume.
     - **Example:** If totalDailyVolume is 100, a valid distribution could be A=50, B=10, C=15, D=5, E=20. The sum is 50+10+15+5+20 = 100.
