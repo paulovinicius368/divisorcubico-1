@@ -208,7 +208,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       ? values.hidrometroAtual - values.hidrometroAnterior
       : 0;
 
-    if (calculatedVolume <= 0) {
+    if (calculatedVolume <= 0 && values.hidrometroAnterior > 0) {
       handleSaveAndAdvance([], calculatedVolume);
       setIsLoading(false);
       return;
