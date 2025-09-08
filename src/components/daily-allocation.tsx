@@ -104,9 +104,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
   useEffect(() => {
     if (editDate && monthlyData[editDate]) {
       const data = monthlyData[editDate];
-      const previousDay = subDays(parseISO(editDate), 1);
       
-      // Find the last entry for the same well before the edited date
       const previousDayData = Object.values(monthlyData)
         .filter(d => d.well === data.well && new Date(d.date) < new Date(editDate))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -117,13 +115,22 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
       setValue("hidrometroAtual", data.hidrometro);
       setValue("hidrometroAnterior", previousDayData?.hidrometro ?? 0);
     } else if (!isEditing) {
+      const well = getValues('well');
       reset({
         hidrometroAnterior: 0, 
         hidrometroAtual: 0,
-        well: getValues('well')
+        well: well
       });
+      // After reset, we need to re-evaluate the hidrometroAnterior for the current well
+      if (selectedDate && well) {
+        const lastEntry = Object.values(monthlyData)
+          .filter(d => d.well === well)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          [0];
+        setValue("hidrometroAnterior", lastEntry?.hidrometro ?? 0);
+      }
     }
-  }, [editDate, monthlyData, setValue, reset, getValues, isEditing]);
+  }, [editDate, monthlyData, setValue, reset, getValues, isEditing, selectedDate]);
 
 
   useEffect(() => {
@@ -169,8 +176,10 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
       );
       
       setAllocationResult(null);
+
+      const well = getValues('well');
       reset({
-        well: currentWellValue,
+        well: well,
         hidrometroAnterior: 0, 
         hidrometroAtual: 0,
       });
@@ -181,6 +190,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
         setSelectedDate(nextDay);
       } else {
         onClearEdit(); 
+        setSelectedDate(new Date());
       }
     }
   };
@@ -226,11 +236,11 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
             <div>
               <CardTitle>{isEditing ? 'Editar Lançamento' : 'Configurar Alocação'}</CardTitle>
               <CardDescription>
-                {isEditing ? `Modificando dados do dia ${format(parseISO(editDate!), 'dd/MM/yyyy', { locale: ptBR })}.` : 'Insira os dados para salvar o lançamento diário.'}
+                {isEditing && editDate ? `Modificando dados do dia ${format(parseISO(editDate), 'dd/MM/yyyy', { locale: ptBR })}.` : 'Insira os dados para salvar o lançamento diário.'}
               </CardDescription>
             </div>
             {isEditing && (
-              <Button variant="ghost" size="icon" onClick={() => { onClearEdit(); reset(); setSelectedDate(new Date())}}>
+              <Button variant="ghost" size="icon" onClick={() => { onClearEdit(); setSelectedDate(new Date())}}>
                 <X className="h-4 w-4" />
               </Button>
             )}
