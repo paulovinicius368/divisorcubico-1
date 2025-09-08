@@ -73,18 +73,12 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
       const wellSortedDays = allSortedDays.filter(date => data[date].well === well);
       
       const rows = wellSortedDays
-        .flatMap((date, dayIndex) => {
-          const { allocation, hidrometro, total } = data[date];
-          
-          let hidrometroAnterior = 0;
-          if (dayIndex > 0) {
-              const previousDayString = wellSortedDays[dayIndex - 1];
-              hidrometroAnterior = Number(data[previousDayString]?.hidrometro ?? 0);
-          } else {
-              hidrometroAnterior = Number(hidrometro) - Number(total);
-          }
+        .flatMap((date) => {
+          const { allocation, total } = data[date];
 
-          if (allocation.length === 0) {
+          const filteredAllocation = allocation.filter(item => item.volume > 0);
+
+          if (filteredAllocation.length === 0) {
             return [[
                 format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
                 well,
@@ -94,17 +88,9 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
             ]];
           }
 
-          let cumulativeVolume = 0;
-          const fullDayAllocation = Array.from({ length: 24 }, (_, i) => {
-            const hourData = allocation.find(a => a.hour === i);
-            return { hour: i, volume: hourData?.volume ?? 0 };
-          });
-
-
-          return fullDayAllocation
-            .map(({ hour, volume }, hourIndex) => {
-              const isFirstRowOfDay = hourIndex === 0;
-              cumulativeVolume += volume;
+          return filteredAllocation
+            .map(({ hour, volume }, index) => {
+              const isFirstRowOfDay = index === 0;
 
               const rowData = [
                 isFirstRowOfDay ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
