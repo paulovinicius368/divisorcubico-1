@@ -47,26 +47,28 @@ const prompt = ai.definePrompt({
   name: 'allocateHourlyVolumePrompt',
   input: {schema: z.any()},
   output: {schema: AllocateHourlyVolumeOutputSchema},
-  prompt: `You are a resource allocation expert. Given the total daily volume and the selected well, allocate it to each hour of the day.
+  prompt: `You are a resource allocation expert. Given the total daily volume and the selected well, create a JSON array of 24 objects representing each hour of the day (0-23) and its allocated water volume.
 
-IMPORTANT: The sum of the 'volume' for all 24 hours (from 0 to 23) in the output array MUST be exactly equal to the totalDailyVolume.
+The sum of the 'volume' for all 24 hours (from 0 to 23) in the output array MUST be exactly equal to the totalDailyVolume.
 
 Total Daily Volume: {{{totalDailyVolume}}}
 Well: {{{well}}}
 
 {{#if isMaagWell}}
 The allocation for the "MAAG" well must follow these specific rules:
-- The total volume must be distributed only between the hours of 6 (6:00) and 18 (18:59).
-- The volume for all other hours (0-5 and 19-23) must be explicitly set to 0.
-- The hourly volume for hours 6, 7, 8, 9, 10, 11, and 12 must all be the same value.
-- The hourly volumes for hours 13, 14, and 15 must be different from each other.
-- The hourly volume for hours 16, 17, and 18 must all be the same value.
-- The sum of volumes from hour 6 to 18 must equal the totalDailyVolume.
+1.  **Active Hours:** The total volume must be distributed ONLY between the hours of 6 (6:00) and 18 (18:59).
+2.  **Inactive Hours:** The 'volume' for all other hours (0-5 and 19-23) must be explicitly set to 0.
+3.  **Hourly Distribution Rules:**
+    - The hourly volume for hours 6, 7, 8, 9, 10, 11, and 12 must all be the same value.
+    - The hourly volumes for hours 13, 14, and 15 must be different from each other.
+    - The hourly volume for hours 16, 17, and 18 must all be the same value.
+4.  **CRITICAL SUMMATION RULE:** The sum of ALL HOURLY VOLUMES from hour 6 to 18 must equal the 'totalDailyVolume'.
+    - Example: (volume at 6h * 7) + (volume at 13h) + (volume at 14h) + (volume at 15h) + (volume at 16h * 3) = totalDailyVolume.
 {{else}}
-The volume for each hour should vary throughout the 24 hours (0-23) based on typical daily water usage patterns.
+For other wells, the volume for each hour should vary throughout the 24 hours (0-23) based on typical daily water usage patterns, and the sum of all 24 hourly volumes must equal the 'totalDailyVolume'.
 {{/if}}
 
-Ensure the response is a JSON array of 24 objects. Each object must have "hour" (0-23) and "volume" keys.
+Ensure the final response is a single JSON array of 24 objects. Each object must have "hour" (0-23) and "volume" keys. Do not add any extra explanations.
 `,
   config: {
     safetySettings: [
