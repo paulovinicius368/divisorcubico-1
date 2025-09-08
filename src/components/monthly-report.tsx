@@ -80,9 +80,9 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
           let hidrometroAnterior = 0;
           if (dayIndex > 0) {
               const previousDayString = wellSortedDays[dayIndex - 1];
-              hidrometroAnterior = data[previousDayString]?.hidrometro ?? hidrometro - total;
+              hidrometroAnterior = Number(data[previousDayString]?.hidrometro ?? 0);
           } else {
-              hidrometroAnterior = hidrometro - total;
+              hidrometroAnterior = Number(hidrometro) - Number(total);
           }
 
           if (allocation.length === 0) {
