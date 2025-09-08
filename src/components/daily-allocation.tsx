@@ -72,7 +72,7 @@ const formSchema = z.object({
 }).refine(data => data.hodometroAtual > data.hodometroAnterior, {
   message: "Hodômetro atual deve ser maior que o anterior.",
   path: ["hodometroAtual"],
-})
+});
 
 type DailyAllocationProps = {
   onSave: (
@@ -151,7 +151,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
       );
       setAllocationResult(null);
       form.reset({
-        well: undefined,
+        well: form.getValues("well"),
         hodometroAnterior: form.getValues("hodometroAtual"), // Pass current to previous
         hodometroAtual: 0,
       });
