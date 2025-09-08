@@ -97,6 +97,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
   const { watch, setValue, getValues, reset, control } = form;
   const hidrometroAnterior = watch("hidrometroAnterior");
   const hidrometroAtual = watch("hidrometroAtual");
+  const currentWell = watch("well");
 
   const isEditing = !!editDate;
 
@@ -104,8 +105,12 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
     if (editDate && monthlyData[editDate]) {
       const data = monthlyData[editDate];
       const previousDay = subDays(parseISO(editDate), 1);
-      const previousDayString = format(previousDay, "yyyy-MM-dd");
-      const previousDayData = monthlyData[previousDayString];
+      
+      // Find the last entry for the same well before the edited date
+      const previousDayData = Object.values(monthlyData)
+        .filter(d => d.well === data.well && new Date(d.date) < new Date(editDate))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        [0];
       
       setSelectedDate(parseISO(editDate));
       setValue("well", data.well);
@@ -122,20 +127,24 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
 
 
   useEffect(() => {
-    if (isEditing) return; // Don't auto-update previous odometer when editing
+    if (isEditing) return; 
 
-    if (selectedDate) {
-      const previousDay = subDays(selectedDate, 1);
-      const previousDayString = format(previousDay, "yyyy-MM-dd");
-      const previousDayData = monthlyData[previousDayString];
-      
-      const previousOdometer = previousDayData?.hidrometro ?? 0;
-      setValue("hidrometroAnterior", previousOdometer, { shouldValidate: true });
+    if (selectedDate && currentWell) {
+        const sortedDatesForWell = Object.values(monthlyData)
+            .filter(d => d.well === currentWell)
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        const lastEntryForWell = sortedDatesForWell[sortedDatesForWell.length - 1];
+        const previousOdometer = lastEntryForWell?.hidrometro ?? 0;
+        
+        setValue("hidrometroAnterior", previousOdometer, { shouldValidate: true });
+    } else {
+        setValue("hidrometroAnterior", 0, { shouldValidate: true });
     }
-  }, [selectedDate, monthlyData, setValue, isEditing]);
+  }, [selectedDate, currentWell, monthlyData, setValue, isEditing]);
 
   useEffect(() => {
-    const vol = (hidrometroAnterior > 0 && hidrometroAtual > hidrometroAnterior) 
+    const vol = (hidrometroAtual > hidrometroAnterior) 
       ? hidrometroAtual - hidrometroAnterior
       : 0;
     setTotalVolume(vol);
@@ -148,31 +157,30 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
   ) => {
     if (selectedDate) {
       const dateString = format(selectedDate, "yyyy-MM-dd");
-      const currentWell = getValues("well");
+      const currentWellValue = getValues("well");
       const currentHidrometroAtual = getValues("hidrometroAtual");
 
       onSave(
         dateString,
         volume,
         allocation,
-        currentWell,
+        currentWellValue,
         currentHidrometroAtual
       );
       
       setAllocationResult(null);
       reset({
-        well: currentWell,
+        well: currentWellValue,
         hidrometroAnterior: 0, 
         hidrometroAtual: 0,
       });
 
-      // Advance date to next day if not editing
       if (!isEditing) {
         const nextDay = new Date(selectedDate);
         nextDay.setDate(nextDay.getDate() + 1);
         setSelectedDate(nextDay);
       } else {
-        onClearEdit(); // Clear edit mode after saving
+        onClearEdit(); 
       }
     }
   };
@@ -218,7 +226,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
             <div>
               <CardTitle>{isEditing ? 'Editar Lançamento' : 'Configurar Alocação'}</CardTitle>
               <CardDescription>
-                {isEditing ? `Modificando dados do dia ${format(parseISO(editDate!), 'dd/MM/yyyy')}.` : 'Insira os dados para salvar o lançamento diário.'}
+                {isEditing ? `Modificando dados do dia ${format(parseISO(editDate!), 'dd/MM/yyyy', { locale: ptBR })}.` : 'Insira os dados para salvar o lançamento diário.'}
               </CardDescription>
             </div>
             {isEditing && (
@@ -300,6 +308,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                     <FormControl>
                       <Input
                         type="number"
+                        step="any"
                         placeholder="Leitura anterior"
                         readOnly
                         disabled
@@ -321,6 +330,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                     <FormControl>
                       <Input
                         type="number"
+                        step="any"
                         placeholder="Leitura atual"
                         {...field}
                       />
