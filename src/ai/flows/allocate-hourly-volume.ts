@@ -114,7 +114,45 @@ function allocateMaagVolume(
     } else if (hour >= 16 && hour <= 18) {
       volume = valueE; // Period 3 (3 hours)
     }
-    allocation.push({ hour, volume });
+    allocation.push({ hour, volume: parseFloat(volume.toFixed(2)) });
+  }
+
+  return allocation;
+}
+
+function allocatePecuariaVolume(
+  totalDailyVolume: number
+): AllocateHourlyVolumeOutput {
+  // 1. Generate 7 random values for A, B, C, D, E, F, G
+  const randomValues = Array.from({ length: 7 }, () => Math.random());
+  
+  // 2. Calculate the sum of these random values
+  const randomSum = randomValues.reduce((sum, val) => sum + val, 0);
+
+  // 3. Scale these values so their sum equals totalDailyVolume
+  const scale = totalDailyVolume / randomSum;
+  const [valueA, valueB, valueC, valueD, valueE, valueF, valueG] = randomValues.map(val => val * scale);
+
+  // 4. Build the 24-hour allocation array
+  const allocation: AllocateHourlyVolumeOutput = [];
+  for (let hour = 0; hour < 24; hour++) {
+    let volume = 0;
+    if (hour >= 6 && hour <= 12) {
+      volume = valueA; // Period 1 (7 hours)
+    } else if (hour === 13) {
+      volume = valueB;
+    } else if (hour === 14) {
+      volume = valueC;
+    } else if (hour === 15) {
+      volume = valueD;
+    } else if (hour === 16) {
+      volume = valueE;
+    } else if (hour === 17) {
+      volume = valueF;
+    } else if (hour >= 18 && hour <= 21) {
+      volume = valueG; // Period 3 (4 hours)
+    }
+    allocation.push({ hour, volume: parseFloat(volume.toFixed(2)) });
   }
 
   return allocation;
@@ -131,6 +169,9 @@ const allocateHourlyVolumeFlow = ai.defineFlow(
     if (input.well === 'MAAG') {
       // Use deterministic TypeScript logic for MAAG well
       return allocateMaagVolume(input.totalDailyVolume);
+    } else if (input.well === 'PECUÁRIA') {
+      // Use deterministic TypeScript logic for PECUÁRIA well
+      return allocatePecuariaVolume(input.totalDailyVolume);
     } else {
       // Use AI for other wells
       const {output} = await prompt(input);
