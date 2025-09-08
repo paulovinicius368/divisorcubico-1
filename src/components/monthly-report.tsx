@@ -65,7 +65,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
           allocation
             .filter((item) => item.volume > 0)
             .map(({ hour, volume }) => [
-              date,
+              format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
               well,
               hodometro,
               `${hour}:00`,
@@ -184,7 +184,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
                           Hodômetro: {hodometro}
                         </span>
                         <span className="font-mono text-muted-foreground">
-                          Total: {total} m³
+                          Total: {total.toFixed(2)} m³
                         </span>
                       </div>
                     </div>

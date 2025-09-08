@@ -72,11 +72,11 @@ const formSchema = z.object({
   well: z.string({ required_error: "Por favor, selecione um poço." }),
 }).refine(data => {
   if (data.hodometroAnterior > 0) {
-    return data.hodometroAtual > data.hodometroAnterior;
+    return data.hodometroAtual >= data.hodometroAnterior;
   }
   return true;
 }, {
-  message: "Hodômetro atual deve ser maior que o anterior.",
+  message: "Hodômetro atual deve ser maior ou igual ao anterior.",
   path: ["hodometroAtual"],
 });
 
@@ -109,7 +109,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
     },
   });
 
-  const { watch, setValue } = form;
+  const { watch, setValue, getValues, reset } = form;
   const hodometroAnterior = watch("hodometroAnterior");
   const hodometroAtual = watch("hodometroAtual");
 
@@ -125,11 +125,43 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
   }, [selectedDate, monthlyData, setValue]);
 
   useEffect(() => {
-    const vol = (hodometroAnterior > 0 && hodometroAtual > hodometroAnterior) 
+    const vol = (hodometroAnterior >= 0 && hodometroAtual > hodometroAnterior) 
       ? hodometroAtual - hodometroAnterior
       : 0;
     setTotalVolume(vol);
   }, [hodometroAnterior, hodometroAtual]);
+
+
+  const handleSaveAndAdvance = (
+    allocation: AllocateHourlyVolumeOutput,
+    volume: number
+  ) => {
+    if (selectedDate) {
+      const dateString = format(selectedDate, "yyyy-MM-dd");
+      const currentWell = getValues("well");
+      const currentHodometroAtual = getValues("hodometroAtual");
+
+      onSave(
+        dateString,
+        volume,
+        allocation,
+        currentWell,
+        currentHodometroAtual
+      );
+      
+      setAllocationResult(null);
+      reset({
+        well: currentWell,
+        hodometroAnterior: 0, 
+        hodometroAtual: 0,
+      });
+
+      // Advance date to next day
+      const nextDay = new Date(selectedDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      setSelectedDate(nextDay);
+    }
+  };
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -140,7 +172,8 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
     const calculatedVolume = totalVolume;
 
     if (calculatedVolume <= 0) {
-      setError("O volume diário total deve ser positivo para gerar a alocação.");
+      // If volume is zero or less, just save the odometer reading and advance.
+      handleSaveAndAdvance([], 0);
       setIsLoading(false);
       return;
     }
@@ -151,39 +184,13 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
         well: values.well,
       });
       setAllocationResult(result);
+      // Automatically save after generating allocation
+      handleSaveAndAdvance(result, calculatedVolume);
     } catch (e) {
       setError("Falha ao alocar volume. Por favor, tente novamente.");
       console.error(e);
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  function handleSave() {
-    if (selectedDate && allocationResult) {
-      const dateString = format(selectedDate, "yyyy-MM-dd");
-      const currentWell = form.getValues("well");
-      const currentHodometroAtual = form.getValues("hodometroAtual");
-
-      onSave(
-        dateString,
-        totalVolume,
-        allocationResult,
-        currentWell,
-        currentHodometroAtual
-      );
-      
-      setAllocationResult(null);
-      form.reset({
-        well: currentWell,
-        hodometroAnterior: 0, 
-        hodometroAtual: 0,
-      });
-
-      // Advance date to next day
-      const nextDay = new Date(selectedDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      setSelectedDate(nextDay);
     }
   }
 
@@ -325,16 +332,16 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
 
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isLoading || totalVolume <= 0} className="w-full">
+              <Button type="submit" disabled={isLoading} className="w-full">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Gerando...
+                    Salvando...
                   </>
                 ) : (
                   <>
-                    <BarChart2 className="mr-2 h-4 w-4" />
-                    Gerar Alocação
+                    <Save className="mr-2 h-4 w-4" />
+                    Salvar Lançamento
                   </>
                 )}
               </Button>
@@ -347,7 +354,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
         <CardHeader>
           <CardTitle>Resultado da Alocação</CardTitle>
           <CardDescription>
-            Visualização do volume distribuído por hora.
+            Visualização do volume distribuído por hora. Os resultados são salvos e atualizados no relatório mensal automaticamente.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -365,7 +372,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
           {!isLoading && !displayAllocation && !error && (
             <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
               <p className="text-muted-foreground">
-                Os resultados aparecerão aqui.
+                Os resultados da alocação aparecerão aqui após o salvamento.
               </p>
             </div>
           )}
@@ -420,14 +427,6 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
             </div>
           )}
         </CardContent>
-        {allocationResult && (
-          <CardFooter>
-            <Button onClick={handleSave} className="w-full">
-              <Save className="mr-2 h-4 w-4" />
-              Salvar e Avançar para o Próximo Dia
-            </Button>
-          </CardFooter>
-        )}
       </Card>
     </div>
   );
