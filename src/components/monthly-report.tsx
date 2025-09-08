@@ -226,28 +226,26 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                 );
                 return (
                   <AccordionItem value={day} key={day}>
-                    <AccordionTrigger>
-                      <div className="flex w-full items-center justify-between pr-4">
-                        <div className="flex flex-col items-start">
-                          <span>{formattedDate}</span>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                             <span>Poço: {well}</span>
-                             <span>Hidrômetro: {hidrometro}</span>
-                             <span>Total: {total.toFixed(2)} m³</span>
+                     <div className="flex w-full items-center justify-between pr-4 border-b">
+                        <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 text-left">
+                          <div className="flex flex-col items-start">
+                            <span>{formattedDate}</span>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span>Poço: {well}</span>
+                              <span>Hidrômetro: {hidrometro}</span>
+                              <span>Total: {total.toFixed(2)} m³</span>
+                            </div>
                           </div>
+                        </AccordionTrigger>
+                        <div className="flex items-center gap-1 pl-4">
+                          <Button variant="ghost" size="icon" onClick={() => onEdit(day)}>
+                            <Pencil className="h-4 w-4 text-blue-500" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(day)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
                         </div>
-
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                           <Button variant="ghost" size="icon" onClick={() => onEdit(day)}>
-                              <Pencil className="h-4 w-4 text-blue-500"/>
-                           </Button>
-                           <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(day)}>
-                              <Trash2 className="h-4 w-4 text-red-500"/>
-                           </Button>
-                        </div>
-
                       </div>
-                    </AccordionTrigger>
                     <AccordionContent>
                       <Table>
                         <TableHeader>
