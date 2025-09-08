@@ -9,20 +9,20 @@ import MonthlyReport from "@/components/monthly-report";
 import { useToast } from "@/hooks/use-toast";
 
 export type MonthlyData = Record<
-  string,
+  string, // Unique key, e.g., "YYYY-MM-DD-WELLNAME"
   {
     total: number;
     allocation: AllocateHourlyVolumeOutput;
     well: string;
     hidrometro: number;
-    date: string;
+    date: string; // The date part of the key, e.g., "YYYY-MM-DD"
   }
 >;
 
 export default function CubeSplitterApp() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData>({});
   const [activeTab, setActiveTab] = useState("daily");
-  const [editDate, setEditDate] = useState<string | null>(null);
+  const [editKey, setEditKey] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSaveDay = (
@@ -32,32 +32,34 @@ export default function CubeSplitterApp() {
     well: string,
     hidrometro: number
   ) => {
+    const key = `${date}-${well}`;
     setMonthlyData((prev) => ({
       ...prev,
-      [date]: { total, allocation, well, hidrometro, date },
+      [key]: { total, allocation, well, hidrometro, date },
     }));
     toast({
       title: "Salvo com sucesso!",
-      description: `Os dados de ${date} foram adicionados ao relatório mensal.`,
+      description: `Os dados de ${well} para ${date} foram adicionados ao relatório.`,
     });
-    setEditDate(null);
+    setEditKey(null);
   };
 
-  const handleDeleteDay = (date: string) => {
+  const handleDeleteDay = (key: string) => {
+    const entryDate = monthlyData[key]?.date;
     setMonthlyData(prev => {
       const newData = { ...prev };
-      delete newData[date];
+      delete newData[key];
       return newData;
     });
     toast({
       title: "Excluído com sucesso!",
-      description: `Os dados de ${date} foram removidos.`,
+      description: `Os dados de ${entryDate} foram removidos.`,
       variant: "destructive"
     });
   };
 
-  const handleEditDay = (date: string) => {
-    setEditDate(date);
+  const handleEditDay = (key: string) => {
+    setEditKey(key);
     setActiveTab("daily");
   };
 
@@ -82,8 +84,8 @@ export default function CubeSplitterApp() {
           <DailyAllocation 
             onSave={handleSaveDay} 
             monthlyData={monthlyData} 
-            editDate={editDate}
-            onClearEdit={() => setEditDate(null)}
+            editKey={editKey}
+            onClearEdit={() => setEditKey(null)}
           />
         </TabsContent>
         <TabsContent value="monthly" className="pt-6">

@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Download, FileSpreadsheet, Pencil, Trash2 } from "lucide-react";
 import type { MonthlyData } from "./cube-splitter-app";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -48,8 +48,8 @@ import * as XLSX from "xlsx";
 
 type MonthlyReportProps = {
   data: MonthlyData;
-  onEdit: (date: string) => void;
-  onDelete: (date: string) => void;
+  onEdit: (key: string) => void;
+  onDelete: (key: string) => void;
 };
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -63,16 +63,24 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     if (typeof window === "undefined") return;
 
     const dataByWell: Record<string, typeof data> = {};
-    for (const date in data) {
-      const { well } = data[date];
+    const allKeys = Object.keys(data);
+    for (const key of allKeys) {
+      const { well } = data[key];
       if (!dataByWell[well]) {
         dataByWell[well] = {};
       }
-      dataByWell[well][date] = data[date];
+      dataByWell[well][key] = data[key];
     }
 
-    const allSortedDays = Object.keys(data).sort(
-      (a, b) => new Date(a).getTime() - new Date(b).getTime()
+    const allSortedKeys = allKeys.sort(
+      (a, b) => {
+        const dateA = new Date(data[a].date);
+        const dateB = new Date(data[b].date);
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateA.getTime() - dateB.getTime();
+        }
+        return data[a].well.localeCompare(data[b].well);
+      }
     );
 
     for (const well in dataByWell) {
@@ -85,11 +93,11 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
         "Diferença Diária (m³)",
       ];
 
-      const wellSortedDays = allSortedDays.filter(date => data[date].well === well);
+      const wellSortedKeys = allSortedKeys.filter(key => data[key].well === well);
       
-      const rows = wellSortedDays
-        .flatMap((date) => {
-          const { allocation, total, hidrometro } = data[date];
+      const rows = wellSortedKeys
+        .flatMap((key) => {
+          const { allocation, total, hidrometro, date } = data[key];
 
           const filteredAllocation = allocation.filter(item => item.volume > 0);
 
@@ -105,7 +113,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
           }
           
           let runningHidrometro = hidrometro - total;
-          let lastVolume = -1; // Use -1 para garantir que a primeira iteração sempre some
+          let lastVolume = -1;
 
           return filteredAllocation
             .map(({ hour, volume }, index) => {
@@ -178,8 +186,15 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     URL.revokeObjectURL(url);
   };
 
-  const sortedDays = Object.keys(data).sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
+  const sortedKeys = Object.keys(data).sort(
+    (a, b) => {
+      const dateA = new Date(data[a].date);
+      const dateB = new Date(data[b].date);
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA.getTime() - dateB.getTime();
+      }
+      return data[a].well.localeCompare(data[b].well);
+    }
   );
 
   const confirmDelete = () => {
@@ -189,8 +204,8 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     }
   };
 
-  const getDetailedAllocation = (date: string) => {
-    const { allocation, total, hidrometro } = data[date];
+  const getDetailedAllocation = (key: string) => {
+    const { allocation, total, hidrometro } = data[key];
     const detailed = [];
     
     const filteredAllocation = allocation.filter(item => item.volume > 0);
@@ -217,6 +232,8 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     return detailed;
   };
 
+  const deleteCandidateDate = deleteCandidate ? data[deleteCandidate]?.date : null;
+
   return (
     <>
       <Card>
@@ -229,7 +246,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button disabled={sortedDays.length === 0}>
+              <Button disabled={sortedKeys.length === 0}>
                 <Download className="mr-2 h-4 w-4" />
                 Exportar Relatório
               </Button>
@@ -248,7 +265,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
           </DropdownMenu>
         </CardHeader>
         <CardContent>
-          {sortedDays.length === 0 ? (
+          {sortedKeys.length === 0 ? (
             <div className="flex min-h-[200px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
               <FileSpreadsheet className="h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">
@@ -260,16 +277,16 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
             </div>
           ) : (
             <Accordion type="single" collapsible className="w-full">
-              {sortedDays.map((day) => {
-                const { total, well, hidrometro, date } = data[day];
+              {sortedKeys.map((key) => {
+                const { total, well, hidrometro, date } = data[key];
                 const formattedDate = format(
-                  new Date(date + "T00:00:00"),
+                  parseISO(date),
                   "EEEE, dd 'de' MMMM 'de' yyyy",
                   { locale: ptBR }
                 );
-                const detailedAllocation = getDetailedAllocation(day);
+                const detailedAllocation = getDetailedAllocation(key);
                 return (
-                  <AccordionItem value={day} key={day}>
+                  <AccordionItem value={key} key={key}>
                      <div className="flex w-full items-center justify-between border-b">
                         <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 text-left hover:no-underline">
                           <div className="flex flex-col items-start">
@@ -282,10 +299,10 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                           </div>
                         </AccordionTrigger>
                         <div className="flex items-center gap-1 pl-4 pr-4">
-                          <Button variant="ghost" size="icon" onClick={() => onEdit(day)}>
+                          <Button variant="ghost" size="icon" onClick={() => onEdit(key)}>
                             <Pencil className="h-4 w-4 text-blue-500" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(day)}>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(key)}>
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
@@ -335,7 +352,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
               Essa ação não pode ser desfeita. Isso excluirá permanentemente o
-              lançamento do dia {deleteCandidate && format(new Date(deleteCandidate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}.
+              lançamento do dia {deleteCandidateDate && format(parseISO(deleteCandidateDate), "dd/MM/yyyy", { locale: ptBR })}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

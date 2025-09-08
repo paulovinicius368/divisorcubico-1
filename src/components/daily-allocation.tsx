@@ -54,11 +54,10 @@ const formSchema = z.object({
     .min(0, "O hidrômetro deve ser um número positivo."),
   well: z.string({ required_error: "Por favor, selecione um poço." }),
 }).refine(data => {
-    // A validação só se aplica se o hidrômetro anterior for maior que 0
     if (data.hidrometroAnterior > 0) {
       return data.hidrometroAtual >= data.hidrometroAnterior;
     }
-    return true; // Permite o salvamento se o anterior for 0
+    return true;
 }, {
   message: "Hidrômetro atual deve ser maior ou igual ao anterior.",
   path: ["hidrometroAtual"],
@@ -73,11 +72,11 @@ type DailyAllocationProps = {
     hidrometro: number
   ) => void;
   monthlyData: MonthlyData;
-  editDate: string | null;
+  editKey: string | null;
   onClearEdit: () => void;
 };
 
-export default function DailyAllocation({ onSave, monthlyData, editDate, onClearEdit }: DailyAllocationProps) {
+export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     new Date()
   );
@@ -101,26 +100,27 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
   const hidrometroAnterior = watch("hidrometroAnterior");
   const currentWell = watch("well");
 
-  const isEditing = !!editDate;
+  const isEditing = !!editKey;
 
   useEffect(() => {
-    if (isEditing && editDate && monthlyData[editDate]) {
-      const data = monthlyData[editDate];
-      
+    const editData = isEditing && editKey ? monthlyData[editKey] : null;
+
+    if (isEditing && editData) {
+      const entryDate = parseISO(editData.date);
       const previousDayData = Object.values(monthlyData)
-        .filter(d => d.well === data.well && new Date(d.date) < new Date(editDate))
+        .filter(d => d.well === editData.well && new Date(d.date) < entryDate)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         [0];
 
-      setSelectedDate(parseISO(editDate));
-      setValue("well", data.well);
-      setValue("hidrometroAtual", data.hidrometro);
+      setSelectedDate(entryDate);
+      setValue("well", editData.well);
+      setValue("hidrometroAtual", editData.hidrometro);
       setValue("hidrometroAnterior", previousDayData?.hidrometro ?? 0);
     } else {
         const well = getValues('well');
         resetForm(well);
     }
-  }, [editDate, monthlyData, setValue, isEditing]);
+  }, [editKey, monthlyData, setValue, isEditing]);
 
 
   useEffect(() => {
@@ -143,7 +143,6 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
     const anterior = getValues("hidrometroAnterior");
     const atual = getValues("hidrometroAtual");
     
-    // Só calcula o volume se o hidrômetro anterior for maior que zero
     if (anterior > 0 && atual > anterior) {
       setTotalVolume(atual - anterior);
     } else {
@@ -238,6 +237,8 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
     resetForm(getValues('well'));
   };
 
+  const editDate = isEditing && editKey ? monthlyData[editKey]?.date : null;
+
   return (
     <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
       <Card>
@@ -284,7 +285,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                       mode="single"
                       selected={selectedDate}
                       onSelect={(date) => {
-                        if (!isEditing) setSelectedDate(date);
+                        if (!isEditing && date) setSelectedDate(date);
                       }}
                       initialFocus
                       locale={ptBR}
@@ -292,10 +293,9 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                         if (isEditing) return true;
                         const dateString = format(date, "yyyy-MM-dd");
                         const well = getValues("well");
-                        // Disable date if an entry for this well and this date already exists
-                        return Object.values(monthlyData).some(
-                          (d) => d.date === dateString && d.well === well
-                        );
+                        if (!well) return false;
+                        const key = `${dateString}-${well}`;
+                        return !!monthlyData[key];
                       }}
                     />
                   </PopoverContent>
