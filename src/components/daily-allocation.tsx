@@ -204,10 +204,12 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     setAllocationResult(null);
     setError(null);
 
-    const calculatedVolume = totalVolume;
+    const calculatedVolume = values.hidrometroAnterior > 0 && values.hidrometroAtual > values.hidrometroAnterior
+      ? values.hidrometroAtual - values.hidrometroAnterior
+      : 0;
 
     if (calculatedVolume <= 0) {
-      handleSaveAndAdvance([], 0);
+      handleSaveAndAdvance([], calculatedVolume);
       setIsLoading(false);
       return;
     }
