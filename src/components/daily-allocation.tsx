@@ -186,8 +186,12 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
       setAllocationResult(result);
       // Automatically save after generating allocation
       handleSaveAndAdvance(result, calculatedVolume);
-    } catch (e) {
-      setError("Falha ao alocar volume. Por favor, tente novamente.");
+    } catch (e: any) {
+      if (e.message && e.message.includes('503')) {
+        setError("O serviço de alocação está sobrecarregado. Por favor, tente novamente em alguns instantes.");
+      } else {
+        setError("Falha ao alocar volume. Por favor, tente novamente.");
+      }
       console.error(e);
     } finally {
       setIsLoading(false);
