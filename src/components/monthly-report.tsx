@@ -124,7 +124,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
         });
         downloadBlob(blob, `${filename}.xlsx`);
       } else if (formatType === "pdf") {
-        const doc = new jsPDF() as jsPDFWithAutoTable;
+        const doc = new jsPDF({ orientation: "landscape" }) as jsPDFWithAutoTable;
         doc.autoTable({
           head: [headers],
           body: rows,
