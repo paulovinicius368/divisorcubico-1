@@ -81,6 +81,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
         "Poço",
         "Hora",
         "Volume (m³)",
+        "Hidrômetro",
         "Diferença Diária (m³)",
       ];
 
@@ -88,7 +89,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
       
       const rows = wellSortedDays
         .flatMap((date) => {
-          const { allocation, total } = data[date];
+          const { allocation, total, hidrometro } = data[date];
 
           const filteredAllocation = allocation.filter(item => item.volume > 0);
 
@@ -98,22 +99,36 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                 well,
                 "N/A",
                 "0.00",
+                Number(hidrometro).toFixed(2),
                 Number(total).toFixed(2),
             ]];
           }
+          
+          let runningHidrometro = hidrometro - total;
+          let lastVolume = -1; // Use -1 para garantir que a primeira iteração sempre some
 
           return filteredAllocation
             .map(({ hour, volume }, index) => {
               const isFirstRowOfDay = index === 0;
 
+              if (isFirstRowOfDay) {
+                 runningHidrometro += volume;
+              } else {
+                if (volume !== lastVolume) {
+                  runningHidrometro += volume;
+                }
+              }
+              
               const rowData = [
                 isFirstRowOfDay ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
                 well,
                 `${hour}:00`,
                 volume.toFixed(2),
+                runningHidrometro.toFixed(2),
                 isFirstRowOfDay ? Number(total).toFixed(2) : "",
               ];
-
+              
+              lastVolume = volume;
               return rowData;
             });
         });
@@ -174,6 +189,34 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     }
   };
 
+  const getDetailedAllocation = (date: string) => {
+    const { allocation, total, hidrometro } = data[date];
+    const detailed = [];
+    
+    const filteredAllocation = allocation.filter(item => item.volume > 0);
+    
+    if (filteredAllocation.length === 0) {
+        return [];
+    }
+    
+    let runningHidrometro = hidrometro - total;
+    let lastVolume = -1;
+
+    for (const item of filteredAllocation) {
+      if (detailed.length === 0) {
+        runningHidrometro += item.volume;
+      } else {
+        if (item.volume !== lastVolume) {
+          runningHidrometro += item.volume;
+        }
+      }
+      detailed.push({ ...item, hidrometroCalculado: runningHidrometro });
+      lastVolume = item.volume;
+    }
+    
+    return detailed;
+  };
+
   return (
     <>
       <Card>
@@ -218,16 +261,17 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
           ) : (
             <Accordion type="single" collapsible className="w-full">
               {sortedDays.map((day) => {
-                const { total, allocation, well, hidrometro, date } = data[day];
+                const { total, well, hidrometro, date } = data[day];
                 const formattedDate = format(
                   new Date(date + "T00:00:00"),
                   "EEEE, dd 'de' MMMM 'de' yyyy",
                   { locale: ptBR }
                 );
+                const detailedAllocation = getDetailedAllocation(day);
                 return (
                   <AccordionItem value={day} key={day}>
-                     <div className="flex w-full items-center justify-between pr-4 border-b">
-                        <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 text-left">
+                     <div className="flex w-full items-center justify-between border-b">
+                        <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 text-left hover:no-underline">
                           <div className="flex flex-col items-start">
                             <span>{formattedDate}</span>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -237,7 +281,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                             </div>
                           </div>
                         </AccordionTrigger>
-                        <div className="flex items-center gap-1 pl-4">
+                        <div className="flex items-center gap-1 pl-4 pr-4">
                           <Button variant="ghost" size="icon" onClick={() => onEdit(day)}>
                             <Pencil className="h-4 w-4 text-blue-500" />
                           </Button>
@@ -251,24 +295,30 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                         <TableHeader>
                           <TableRow>
                             <TableHead>Hora</TableHead>
-                            <TableHead className="text-right">
-                              Volume (m³)
-                            </TableHead>
+                            <TableHead>Volume (m³)</TableHead>
+                            <TableHead className="text-right">Hidrômetro</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {allocation
-                            .filter((item) => item.volume > 0)
-                            .map(({ hour, volume }) => (
+                          {detailedAllocation.length > 0 ? (
+                             detailedAllocation.map(({ hour, volume, hidrometroCalculado }) => (
                               <TableRow key={hour}>
                                 <TableCell>{`${hour}:00 - ${
                                   hour + 1
                                 }:00`}</TableCell>
+                                <TableCell>{volume.toFixed(2)}</TableCell>
                                 <TableCell className="text-right font-mono">
-                                  {volume.toFixed(2)}
+                                  {hidrometroCalculado.toFixed(2)}
                                 </TableCell>
                               </TableRow>
-                            ))}
+                            ))
+                          ) : (
+                             <TableRow>
+                                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                    Nenhuma vazão registrada neste dia.
+                                </TableCell>
+                             </TableRow>
+                          )}
                         </TableBody>
                       </Table>
                     </AccordionContent>
