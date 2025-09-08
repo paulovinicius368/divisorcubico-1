@@ -49,26 +49,26 @@ const prompt = ai.definePrompt({
   output: {schema: AllocateHourlyVolumeOutputSchema},
   prompt: `You are a resource allocation expert. Given the total daily volume and the selected well, create a JSON array of 24 objects representing each hour of the day (0-23) and its allocated water volume.
 
-The sum of the 'volume' for all 24 hours (from 0 to 23) in the output array MUST be exactly equal to the totalDailyVolume.
+The final response must be a single JSON array of 24 objects. Each object must have "hour" (0-23) and "volume" keys. Do not add any extra explanations.
 
 Total Daily Volume: {{{totalDailyVolume}}}
 Well: {{{well}}}
 
 {{#if isMaagWell}}
 The allocation for the "MAAG" well must follow these specific rules:
-1.  **Active Hours:** The total volume must be distributed ONLY between the hours of 6 (6:00) and 18 (18:59).
+1.  **Active Hours:** The water volume is distributed ONLY between the hours of 6 (6:00) and 18 (18:59).
 2.  **Inactive Hours:** The 'volume' for all other hours (0-5 and 19-23) must be explicitly set to 0.
 3.  **Hourly Distribution Rules:**
-    - The hourly volume for hours 6, 7, 8, 9, 10, 11, and 12 must all be the same value.
-    - The hourly volumes for hours 13, 14, and 15 must be different from each other.
-    - The hourly volume for hours 16, 17, and 18 must all be the same value.
-4.  **CRITICAL SUMMATION RULE:** The sum of ALL HOURLY VOLUMES from hour 6 to 18 must equal the 'totalDailyVolume'.
-    - Example: (volume at 6h * 7) + (volume at 13h) + (volume at 14h) + (volume at 15h) + (volume at 16h * 3) = totalDailyVolume.
+    - The hourly volumes for hours 6, 7, 8, 9, 10, 11, and 12 must all be the same value (let's call this Value A).
+    - The hourly volumes for hours 13, 14, and 15 must be different from each other (let's call these Value B, Value C, Value D).
+    - The hourly volume for hours 16, 17, and 18 must all be the same value (let's call this Value E).
+4.  **CRITICAL SUMMATION RULE:** The sum of the unique representative volumes MUST equal the 'totalDailyVolume'.
+    - **Calculation:** (Value A) + (Value B) + (Value C) + (Value D) + (Value E) = totalDailyVolume.
+    - **Example:** If totalDailyVolume is 100, a valid distribution could be A=50, B=10, C=15, D=5, E=20. The sum is 50+10+15+5+20 = 100.
+    - You must first determine these 5 values (A, B, C, D, E) whose sum is totalDailyVolume, and then use them to build the final 24-hour array.
 {{else}}
-For other wells, the volume for each hour should vary throughout the 24 hours (0-23) based on typical daily water usage patterns, and the sum of all 24 hourly volumes must equal the 'totalDailyVolume'.
+For other wells, the volume for each hour should vary throughout the 24 hours (0-23) based on typical daily water usage patterns, and the sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'.
 {{/if}}
-
-Ensure the final response is a single JSON array of 24 objects. Each object must have "hour" (0-23) and "volume" keys. Do not add any extra explanations.
 `,
   config: {
     safetySettings: [
