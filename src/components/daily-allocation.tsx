@@ -102,7 +102,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
     },
   });
 
-  const { watch } = form;
+  const { watch, setValue } = form;
   const hodometroAnterior = watch("hodometroAnterior");
   const hodometroAtual = watch("hodometroAtual");
 
@@ -142,19 +142,24 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
   function handleSave() {
     if (selectedDate && allocationResult) {
       const dateString = format(selectedDate, "yyyy-MM-dd");
+      const currentWell = form.getValues("well");
+      const currentHodometroAtual = form.getValues("hodometroAtual");
+
       onSave(
         dateString,
         totalVolume,
         allocationResult,
-        form.getValues("well"),
-        form.getValues("hodometroAtual")
+        currentWell,
+        currentHodometroAtual
       );
+      
       setAllocationResult(null);
       form.reset({
-        well: form.getValues("well"),
-        hodometroAnterior: form.getValues("hodometroAtual"), // Pass current to previous
+        well: currentWell,
         hodometroAtual: 0,
+        hodometroAnterior: currentHodometroAtual, // Pass current to previous
       });
+      setValue("hodometroAnterior", currentHodometroAtual, { shouldValidate: true });
     }
   }
 
@@ -251,7 +256,10 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
                       <Input
                         type="number"
                         placeholder="Leitura anterior"
+                        readOnly
+                        disabled
                         {...field}
+                        className="cursor-default bg-muted/50"
                       />
                     </FormControl>
                     <FormMessage />
