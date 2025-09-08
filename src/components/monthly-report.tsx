@@ -57,26 +57,55 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
       dataByWell[well][date] = data[date];
     }
 
+    const sortedDays = Object.keys(data).sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime()
+    );
+
     for (const well in dataByWell) {
-      const headers = ["Data", "Poço", "Hidrômetro", "Hora", "Volume (m³)"];
-      const rows = Object.entries(dataByWell[well])
-        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-        .flatMap(([, { date, allocation, hidrometro }]) => {
-          const hidrometroAnterior = hidrometro - (allocation.reduce((acc, curr) => acc + curr.volume, 0));
+      const headers = [
+        "Data",
+        "Poço",
+        "Hidrômetro",
+        "Hora",
+        "Volume (m³)",
+        "Diferença Diária (m³)",
+      ];
+      
+      const rows = sortedDays
+        .filter(date => data[date].well === well)
+        .flatMap((date, dayIndex) => {
+          const { allocation, hidrometro, total } = data[date];
+          const previousDay = dayIndex > 0 ? sortedDays[dayIndex - 1] : null;
+          const hidrometroAnterior = previousDay ? data[previousDay].hidrometro : hidrometro - total;
+
+          if (allocation.length === 0) {
+            return [[
+                format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
+                well,
+                hidrometro.toFixed(2),
+                "N/A",
+                "0.00",
+                total.toFixed(2),
+            ]];
+          }
+
           let cumulativeVolume = 0;
-          
           return allocation
             .filter((item) => item.volume > 0)
-            .map(({ hour, volume }) => {
+            .map(({ hour, volume }, hourIndex) => {
+              const hidrometroHora = hidrometroAnterior + cumulativeVolume + volume;
               cumulativeVolume += volume;
-              const hidrometroHora = hidrometroAnterior + cumulativeVolume;
-              return [
-                format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
+
+              const rowData = [
+                hourIndex === 0 ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
                 well,
                 hidrometroHora.toFixed(2),
                 `${hour}:00`,
                 volume.toFixed(2),
+                hourIndex === 0 ? total.toFixed(2) : "",
               ];
+
+              return rowData;
             });
         });
 
