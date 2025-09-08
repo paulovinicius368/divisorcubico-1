@@ -58,7 +58,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
     }
 
     for (const well in dataByWell) {
-      const headers = ["Data", "Poço", "Hodômetro", "Hora", "Volume (m³)"];
+      const headers = ["Data", "Poço", "Hidrômetro", "Hora", "Volume (m³)"];
       const rows = Object.entries(dataByWell[well])
         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
         .flatMap(([, { date, allocation, hodometro }]) =>
@@ -181,7 +181,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
                           Poço: {well}
                         </span>
                          <span className="font-mono text-sm text-muted-foreground">
-                          Hodômetro: {hodometro}
+                          Hidrômetro: {hodometro}
                         </span>
                         <span className="font-mono text-muted-foreground">
                           Total: {total.toFixed(2)} m³

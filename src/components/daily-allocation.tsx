@@ -63,21 +63,21 @@ import { ChartContainer, ChartTooltipContent } from "./ui/chart";
 import type { MonthlyData } from "./cube-splitter-app";
 
 const formSchema = z.object({
-  hodometroAnterior: z.coerce
+  hidrometroAnterior: z.coerce
     .number({ invalid_type_error: "Por favor, insira um número." })
-    .min(0, "O hodômetro deve ser um número positivo."),
-  hodometroAtual: z.coerce
+    .min(0, "O hidrômetro deve ser um número positivo."),
+  hidrometroAtual: z.coerce
     .number({ invalid_type_error: "Por favor, insira um número." })
-    .min(0, "O hodômetro deve ser um número positivo."),
+    .min(0, "O hidrômetro deve ser um número positivo."),
   well: z.string({ required_error: "Por favor, selecione um poço." }),
 }).refine(data => {
-  if (data.hodometroAnterior > 0) {
-    return data.hodometroAtual >= data.hodometroAnterior;
+  if (data.hidrometroAnterior > 0) {
+    return data.hidrometroAtual >= data.hidrometroAnterior;
   }
   return true;
 }, {
-  message: "Hodômetro atual deve ser maior ou igual ao anterior.",
-  path: ["hodometroAtual"],
+  message: "Hidrômetro atual deve ser maior ou igual ao anterior.",
+  path: ["hidrometroAtual"],
 });
 
 type DailyAllocationProps = {
@@ -86,7 +86,7 @@ type DailyAllocationProps = {
     total: number,
     allocation: AllocateHourlyVolumeOutput,
     well: string,
-    hodometro: number
+    hidrometro: number
   ) => void;
   monthlyData: MonthlyData;
 };
@@ -104,14 +104,14 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      hodometroAnterior: 0,
-      hodometroAtual: 0,
+      hidrometroAnterior: 0,
+      hidrometroAtual: 0,
     },
   });
 
   const { watch, setValue, getValues, reset } = form;
-  const hodometroAnterior = watch("hodometroAnterior");
-  const hodometroAtual = watch("hodometroAtual");
+  const hidrometroAnterior = watch("hidrometroAnterior");
+  const hidrometroAtual = watch("hidrometroAtual");
 
   useEffect(() => {
     if (selectedDate) {
@@ -119,17 +119,17 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
       const previousDayString = format(previousDay, "yyyy-MM-dd");
       const previousDayData = monthlyData[previousDayString];
       
-      const previousOdometer = previousDayData?.hodometro ?? 0;
-      setValue("hodometroAnterior", previousOdometer, { shouldValidate: true });
+      const previousOdometer = previousDayData?.hidrometro ?? 0;
+      setValue("hidrometroAnterior", previousOdometer, { shouldValidate: true });
     }
   }, [selectedDate, monthlyData, setValue]);
 
   useEffect(() => {
-    const vol = (hodometroAnterior > 0 && hodometroAtual > hodometroAnterior) 
-      ? hodometroAtual - hodometroAnterior
+    const vol = (hidrometroAnterior > 0 && hidrometroAtual > hidrometroAnterior) 
+      ? hidrometroAtual - hidrometroAnterior
       : 0;
     setTotalVolume(vol);
-  }, [hodometroAnterior, hodometroAtual]);
+  }, [hidrometroAnterior, hidrometroAtual]);
 
 
   const handleSaveAndAdvance = (
@@ -139,21 +139,21 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
     if (selectedDate) {
       const dateString = format(selectedDate, "yyyy-MM-dd");
       const currentWell = getValues("well");
-      const currentHodometroAtual = getValues("hodometroAtual");
+      const currentHidrometroAtual = getValues("hidrometroAtual");
 
       onSave(
         dateString,
         volume,
         allocation,
         currentWell,
-        currentHodometroAtual
+        currentHidrometroAtual
       );
       
       setAllocationResult(null);
       reset({
         well: currentWell,
-        hodometroAnterior: 0, 
-        hodometroAtual: 0,
+        hidrometroAnterior: 0, 
+        hidrometroAtual: 0,
       });
 
       // Advance date to next day
@@ -279,10 +279,10 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
 
               <FormField
                 control={form.control}
-                name="hodometroAnterior"
+                name="hidrometroAnterior"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hodômetro Anterior</FormLabel>
+                    <FormLabel>Hidrômetro Anterior</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -300,10 +300,10 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
 
               <FormField
                 control={form.control}
-                name="hodometroAtual"
+                name="hidrometroAtual"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hodômetro Atual</FormLabel>
+                    <FormLabel>Hidrômetro Atual</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
