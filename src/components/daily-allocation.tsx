@@ -120,7 +120,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         const well = getValues('well');
         resetForm(well);
     }
-  }, [editKey, monthlyData, setValue, isEditing]);
+  }, [editKey, monthlyData, setValue, isEditing, getValues]);
 
 
   useEffect(() => {
