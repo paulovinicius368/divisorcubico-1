@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, subDays, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Calendar as CalendarIcon,
@@ -54,10 +54,7 @@ const formSchema = z.object({
     .min(0, "O hidrômetro deve ser um número positivo."),
   well: z.string({ required_error: "Por favor, selecione um poço." }),
 }).refine(data => {
-  if (data.hidrometroAnterior > 0) {
     return data.hidrometroAtual >= data.hidrometroAnterior;
-  }
-  return true;
 }, {
   message: "Hidrômetro atual deve ser maior ou igual ao anterior.",
   path: ["hidrometroAtual"],
@@ -91,71 +88,72 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
     defaultValues: {
       hidrometroAnterior: 0,
       hidrometroAtual: 0,
+      well: undefined,
     },
   });
 
   const { watch, setValue, getValues, reset, control } = form;
-  const hidrometroAnterior = watch("hidrometroAnterior");
   const hidrometroAtual = watch("hidrometroAtual");
   const currentWell = watch("well");
 
   const isEditing = !!editDate;
 
   useEffect(() => {
-    if (editDate && monthlyData[editDate]) {
+    if (isEditing && editDate && monthlyData[editDate]) {
       const data = monthlyData[editDate];
+      const previousDayDate = new Date(editDate);
+      previousDayDate.setDate(previousDayDate.getDate() - 1);
+      const previousDayString = format(previousDayDate, "yyyy-MM-dd");
       
       const previousDayData = Object.values(monthlyData)
         .filter(d => d.well === data.well && new Date(d.date) < new Date(editDate))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         [0];
-      
+
       setSelectedDate(parseISO(editDate));
       setValue("well", data.well);
       setValue("hidrometroAtual", data.hidrometro);
       setValue("hidrometroAnterior", previousDayData?.hidrometro ?? 0);
-    } else if (!isEditing) {
-      const well = getValues('well');
-      reset({
-        hidrometroAnterior: 0, 
-        hidrometroAtual: 0,
-        well: well
-      });
-      // After reset, we need to re-evaluate the hidrometroAnterior for the current well
-      if (selectedDate && well) {
-        const lastEntry = Object.values(monthlyData)
-          .filter(d => d.well === well)
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          [0];
-        setValue("hidrometroAnterior", lastEntry?.hidrometro ?? 0);
-      }
+    } else {
+        const well = getValues('well');
+        resetForm(well);
     }
-  }, [editDate, monthlyData, setValue, reset, getValues, isEditing, selectedDate]);
+  }, [editDate, monthlyData, setValue, isEditing]);
 
 
   useEffect(() => {
-    if (isEditing) return; 
+    if (isEditing) return;
 
     if (selectedDate && currentWell) {
-        const sortedDatesForWell = Object.values(monthlyData)
-            .filter(d => d.well === currentWell)
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const lastEntryForWell = Object.values(monthlyData)
+            .filter(d => d.well === currentWell && new Date(d.date) < selectedDate)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            [0];
         
-        const lastEntryForWell = sortedDatesForWell[sortedDatesForWell.length - 1];
-        const previousOdometer = lastEntryForWell?.hidrometro ?? 0;
-        
-        setValue("hidrometroAnterior", previousOdometer, { shouldValidate: true });
+        setValue("hidrometroAnterior", lastEntryForWell?.hidrometro ?? 0);
     } else {
-        setValue("hidrometroAnterior", 0, { shouldValidate: true });
+        setValue("hidrometroAnterior", 0);
     }
   }, [selectedDate, currentWell, monthlyData, setValue, isEditing]);
 
+
   useEffect(() => {
-    const vol = (hidrometroAtual > hidrometroAnterior) 
-      ? hidrometroAtual - hidrometroAnterior
-      : 0;
+    const currentValues = getValues();
+    const anterior = currentValues.hidrometroAnterior;
+    const atual = currentValues.hidrometroAtual;
+    
+    const vol = (atual > anterior) ? atual - anterior : 0;
     setTotalVolume(vol);
-  }, [hidrometroAnterior, hidrometroAtual]);
+  }, [hidrometroAtual, getValues]);
+
+  const resetForm = (well?: string) => {
+    reset({
+      hidrometroAnterior: 0,
+      hidrometroAtual: 0,
+      well: well,
+    });
+    setTotalVolume(0);
+  };
 
 
   const handleSaveAndAdvance = (
@@ -177,20 +175,21 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
       
       setAllocationResult(null);
 
-      const well = getValues('well');
-      reset({
-        well: well,
-        hidrometroAnterior: 0, 
-        hidrometroAtual: 0,
-      });
-
-      if (!isEditing) {
+      if (isEditing) {
+        onClearEdit();
+        setSelectedDate(new Date());
+        resetForm(getValues('well'));
+      } else {
         const nextDay = new Date(selectedDate);
         nextDay.setDate(nextDay.getDate() + 1);
         setSelectedDate(nextDay);
-      } else {
-        onClearEdit(); 
-        setSelectedDate(new Date());
+        
+        const currentHidroAtual = getValues('hidrometroAtual');
+        reset({
+          well: getValues('well'),
+          hidrometroAnterior: currentHidroAtual,
+          hidrometroAtual: 0,
+        });
       }
     }
   };
@@ -228,6 +227,12 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
     }
   }
 
+  const handleClearEdit = () => {
+    onClearEdit();
+    setSelectedDate(new Date());
+    resetForm(getValues('well'));
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
       <Card>
@@ -240,7 +245,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
               </CardDescription>
             </div>
             {isEditing && (
-              <Button variant="ghost" size="icon" onClick={() => { onClearEdit(); setSelectedDate(new Date())}}>
+              <Button variant="ghost" size="icon" onClick={handleClearEdit}>
                 <X className="h-4 w-4" />
               </Button>
             )}
@@ -273,10 +278,12 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={setSelectedDate}
+                      onSelect={(date) => {
+                        if (!isEditing) setSelectedDate(date);
+                      }}
                       initialFocus
                       locale={ptBR}
-                      disabled={isEditing}
+                      disabled={(date) => isEditing || (monthlyData[format(date, "yyyy-MM-dd")] && !isEditing)}
                     />
                   </PopoverContent>
                 </Popover>
@@ -289,7 +296,11 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                   <FormItem>
                     <FormLabel>Poços de Captação</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
+                      onValueChange={(value) => {
+                        if (!isEditing) {
+                            field.onChange(value);
+                        }
+                      }}
                       value={field.value}
                       disabled={isEditing}
                     >
@@ -343,6 +354,10 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                         step="any"
                         placeholder="Leitura atual"
                         {...field}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value === '' ? '' : Number(value));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -375,7 +390,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    {isEditing ? 'Atualizar Lançamento' : 'Salvar Lançamento'}
+                    {isEditing ? 'Atualizar Lançamento' : 'Salvar e Avançar'}
                   </>
                 )}
               </Button>
@@ -386,3 +401,5 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
     </div>
   );
 }
+
+    
