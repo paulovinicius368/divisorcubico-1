@@ -53,7 +53,7 @@ const formSchema = z.object({
     .number({ invalid_type_error: "Por favor, insira um número." })
     .min(0, "O hidrômetro deve ser um número positivo."),
   well: z.string({ required_error: "Por favor, selecione um poço." }),
-}).refine(data => {
+}).refine((data) => {
     if (data.hidrometroAnterior > 0) {
       return data.hidrometroAtual >= data.hidrometroAnterior;
     }
@@ -103,9 +103,8 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   const isEditing = !!editKey;
 
   useEffect(() => {
-    const editData = isEditing && editKey ? monthlyData[editKey] : null;
-
-    if (isEditing && editData) {
+    if (editKey && monthlyData[editKey]) {
+      const editData = monthlyData[editKey];
       const entryDate = parseISO(editData.date);
       const previousDayDate = subDays(entryDate, 1);
       const previousDayKey = `${format(previousDayDate, "yyyy-MM-dd")}-${editData.well}`;
@@ -117,17 +116,14 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
           hidrometroAnterior: previousDayData?.hidrometro ?? 0,
       });
       setSelectedDate(entryDate);
-
-    } else if (!isEditing) {
-        // Only reset if we are not in edit mode
+    } else {
         const well = getValues('well');
         resetForm(well, selectedDate);
     }
-  }, [editKey, monthlyData, isEditing, reset]);
+  }, [editKey, monthlyData, reset]);
 
 
   useEffect(() => {
-    // This effect should only run when not in edit mode
     if (isEditing) return;
 
     if (selectedDate && currentWell) {
