@@ -9,17 +9,9 @@ import { ptBR } from "date-fns/locale";
 import {
   Calendar as CalendarIcon,
   Loader2,
-  BarChart2,
   Save,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
+
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
 import { allocateHourlyVolume } from "@/ai/flows/allocate-hourly-volume";
 import { Button } from "@/components/ui/button";
@@ -49,17 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "./ui/skeleton";
-import { ChartContainer, ChartTooltipContent } from "./ui/chart";
 import type { MonthlyData } from "./cube-splitter-app";
 
 const formSchema = z.object({
@@ -96,7 +78,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
     new Date()
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [allocationResult, setAllocationResult] =
+  const [, setAllocationResult] =
     useState<AllocateHourlyVolumeOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [totalVolume, setTotalVolume] = useState(0);
@@ -198,26 +180,13 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
     }
   }
 
-  const chartConfig = {
-    volume: {
-      label: "Volume (m³)",
-      color: "hsl(var(--primary))",
-    },
-  };
-  
-  const isMaagWell = form.getValues("well") === "MAAG";
-  const displayAllocation =
-    allocationResult && isMaagWell
-      ? allocationResult.filter((item) => item.volume > 0)
-      : allocationResult;
-
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-      <Card className="lg:col-span-2">
+    <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
+      <Card>
         <CardHeader>
           <CardTitle>Configurar Alocação</CardTitle>
           <CardDescription>
-            Insira os dados para gerar a alocação horária.
+            Insira os dados para salvar o lançamento diário.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -333,7 +302,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
                 </FormControl>
                 <FormMessage />
               </FormItem>
-
+              {error && <p className="text-destructive text-sm">{error}</p>}
             </CardContent>
             <CardFooter>
               <Button type="submit" disabled={isLoading} className="w-full">
@@ -352,85 +321,6 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
             </CardFooter>
           </form>
         </Form>
-      </Card>
-
-      <Card className="lg:col-span-3">
-        <CardHeader>
-          <CardTitle>Resultado da Alocação</CardTitle>
-          <CardDescription>
-            Visualização do volume distribuído por hora. Os resultados são salvos e atualizados no relatório mensal automaticamente.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading && (
-            <div className="space-y-4">
-              <Skeleton className="h-[250px] w-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-              </div>
-            </div>
-          )}
-          {error && <p className="text-destructive">{error}</p>}
-          {!isLoading && !displayAllocation && !error && (
-            <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed">
-              <p className="text-muted-foreground">
-                Os resultados da alocação aparecerão aqui após o salvamento.
-              </p>
-            </div>
-          )}
-          {displayAllocation && (
-            <div className="space-y-6">
-              <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                <BarChart data={displayAllocation} accessibilityLayer>
-                  <XAxis
-                    dataKey="hour"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value) => `${value}h`}
-                  />
-                  <YAxis
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `${value}`}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "hsl(var(--accent))" }}
-                    content={<ChartTooltipContent />}
-                  />
-                  <Bar
-                    dataKey="volume"
-                    fill="hsl(var(--primary))"
-                    radius={4}
-                  />
-                </BarChart>
-              </ChartContainer>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Hora</TableHead>
-                    <TableHead className="text-right">Volume (m³)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayAllocation.map(({ hour, volume }) => (
-                    <TableRow key={hour}>
-                      <TableCell>{`${hour}:00 - ${hour + 1}:00`}</TableCell>
-                      <TableCell className="text-right">
-                        {volume.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
       </Card>
     </div>
   );
