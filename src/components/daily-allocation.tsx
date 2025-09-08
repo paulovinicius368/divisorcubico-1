@@ -316,7 +316,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
           <CardTitle>Resultado da Alocação</CardTitle>
           <CardDescription>
             Visualização do volume distribuído por hora.
-          </Description>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading && (
