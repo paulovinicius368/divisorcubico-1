@@ -260,6 +260,37 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
+              <FormField
+                control={control}
+                name="well"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Poços de Captação</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        if (!isEditing) {
+                            field.onChange(value);
+                        }
+                      }}
+                      value={field.value}
+                      disabled={isEditing}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um poço" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="MAAG">MAAG</SelectItem>
+                        <SelectItem value="PECUÁRIA">PECUÁRIA</SelectItem>
+                        <SelectItem value="TCHE">TCHE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="space-y-2">
                 <FormLabel>Data da Alocação</FormLabel>
                 <Popover>
@@ -301,37 +332,6 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                   </PopoverContent>
                 </Popover>
               </div>
-
-              <FormField
-                control={control}
-                name="well"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Poços de Captação</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        if (!isEditing) {
-                            field.onChange(value);
-                        }
-                      }}
-                      value={field.value}
-                      disabled={isEditing}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um poço" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="MAAG">MAAG</SelectItem>
-                        <SelectItem value="PECUÁRIA">PECUÁRIA</SelectItem>
-                        <SelectItem value="TCHE">TCHE</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <FormField
                 control={control}
