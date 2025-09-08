@@ -288,7 +288,15 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
                       }}
                       initialFocus
                       locale={ptBR}
-                      disabled={(date) => isEditing || (monthlyData[format(date, "yyyy-MM-dd")] && !isEditing)}
+                      disabled={(date) => {
+                        if (isEditing) return true;
+                        const dateString = format(date, "yyyy-MM-dd");
+                        const well = getValues("well");
+                        // Disable date if an entry for this well and this date already exists
+                        return Object.values(monthlyData).some(
+                          (d) => d.date === dateString && d.well === well
+                        );
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
