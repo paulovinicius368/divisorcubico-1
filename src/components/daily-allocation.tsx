@@ -54,7 +54,11 @@ const formSchema = z.object({
     .min(0, "O hidrômetro deve ser um número positivo."),
   well: z.string({ required_error: "Por favor, selecione um poço." }),
 }).refine(data => {
-    return data.hidrometroAtual >= data.hidrometroAnterior;
+    // A validação só se aplica se o hidrômetro anterior for maior que 0
+    if (data.hidrometroAnterior > 0) {
+      return data.hidrometroAtual >= data.hidrometroAnterior;
+    }
+    return true; // Permite o salvamento se o anterior for 0
 }, {
   message: "Hidrômetro atual deve ser maior ou igual ao anterior.",
   path: ["hidrometroAtual"],
@@ -94,6 +98,7 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
 
   const { watch, setValue, getValues, reset, control } = form;
   const hidrometroAtual = watch("hidrometroAtual");
+  const hidrometroAnterior = watch("hidrometroAnterior");
   const currentWell = watch("well");
 
   const isEditing = !!editDate;
@@ -101,9 +106,6 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
   useEffect(() => {
     if (isEditing && editDate && monthlyData[editDate]) {
       const data = monthlyData[editDate];
-      const previousDayDate = new Date(editDate);
-      previousDayDate.setDate(previousDayDate.getDate() - 1);
-      const previousDayString = format(previousDayDate, "yyyy-MM-dd");
       
       const previousDayData = Object.values(monthlyData)
         .filter(d => d.well === data.well && new Date(d.date) < new Date(editDate))
@@ -138,13 +140,16 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
 
 
   useEffect(() => {
-    const currentValues = getValues();
-    const anterior = currentValues.hidrometroAnterior;
-    const atual = currentValues.hidrometroAtual;
+    const anterior = getValues("hidrometroAnterior");
+    const atual = getValues("hidrometroAtual");
     
-    const vol = (atual > anterior) ? atual - anterior : 0;
-    setTotalVolume(vol);
-  }, [hidrometroAtual, getValues]);
+    // Só calcula o volume se o hidrômetro anterior for maior que zero
+    if (anterior > 0 && atual > anterior) {
+      setTotalVolume(atual - anterior);
+    } else {
+      setTotalVolume(0);
+    }
+  }, [hidrometroAtual, hidrometroAnterior, getValues]);
 
   const resetForm = (well?: string) => {
     reset({
@@ -401,5 +406,3 @@ export default function DailyAllocation({ onSave, monthlyData, editDate, onClear
     </div>
   );
 }
-
-    
