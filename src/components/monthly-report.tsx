@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -38,13 +38,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Download, FileSpreadsheet, Pencil, Trash2 } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Trash2, X } from "lucide-react";
 import type { MonthlyData } from "./cube-splitter-app";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, getYear, getMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type MonthlyReportProps = {
   data: MonthlyData;
@@ -58,30 +59,76 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportProps) {
   const [deleteCandidate, setDeleteCandidate] = useState<string | null>(null);
+  const [filterWell, setFilterWell] = useState<string>("");
+  const [filterYear, setFilterYear] = useState<string>("");
+  const [filterMonth, setFilterMonth] = useState<string>("");
+
+  const sortedKeys = useMemo(() => Object.keys(data).sort(
+    (a, b) => {
+      const dateA = new Date(data[a].date);
+      const dateB = new Date(data[b].date);
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA.getTime() - dateB.getTime();
+      }
+      return data[a].well.localeCompare(data[b].well);
+    }
+  ), [data]);
+
+  const { filterOptions, filteredKeys } = useMemo(() => {
+    const years = new Set<string>();
+    const months = new Set<string>();
+    const wells = new Set<string>();
+
+    sortedKeys.forEach(key => {
+      const item = data[key];
+      const itemDate = parseISO(item.date);
+      years.add(getYear(itemDate).toString());
+      months.add((getMonth(itemDate) + 1).toString().padStart(2, '0'));
+      wells.add(item.well);
+    });
+    
+    const fKeys = sortedKeys.filter(key => {
+      const item = data[key];
+      const itemDate = parseISO(item.date);
+      const itemYear = getYear(itemDate).toString();
+      const itemMonth = (getMonth(itemDate) + 1).toString().padStart(2, '0');
+
+      return (
+        (filterWell ? item.well === filterWell : true) &&
+        (filterYear ? itemYear === filterYear : true) &&
+        (filterMonth ? itemMonth === filterMonth : true)
+      );
+    });
+
+    return {
+      filterOptions: {
+        years: Array.from(years).sort((a,b) => Number(b) - Number(a)),
+        months: Array.from(months).sort((a,b) => Number(a) - Number(b)),
+        wells: Array.from(wells).sort(),
+      },
+      filteredKeys: fKeys,
+    };
+  }, [sortedKeys, data, filterWell, filterYear, filterMonth]);
+  
+  const clearFilters = () => {
+    setFilterWell("");
+    setFilterYear("");
+    setFilterMonth("");
+  };
 
   const handleExport = (formatType: "csv" | "xlsx" | "pdf") => {
     if (typeof window === "undefined") return;
 
-    const dataByWell: Record<string, typeof data> = {};
-    const allKeys = Object.keys(data);
-    for (const key of allKeys) {
+    const dataToExport = filteredKeys.length > 0 ? filteredKeys : sortedKeys;
+
+    const dataByWell: Record<string, string[]> = {};
+    for (const key of dataToExport) {
       const { well } = data[key];
       if (!dataByWell[well]) {
-        dataByWell[well] = {};
+        dataByWell[well] = [];
       }
-      dataByWell[well][key] = data[key];
+      dataByWell[well].push(key);
     }
-
-    const allSortedKeys = allKeys.sort(
-      (a, b) => {
-        const dateA = new Date(data[a].date);
-        const dateB = new Date(data[b].date);
-        if (dateA.getTime() !== dateB.getTime()) {
-          return dateA.getTime() - dateB.getTime();
-        }
-        return data[a].well.localeCompare(data[b].well);
-      }
-    );
 
     for (const well in dataByWell) {
       const headers = [
@@ -93,7 +140,9 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
         "Diferença Diária (m³)",
       ];
 
-      const wellSortedKeys = allSortedKeys.filter(key => data[key].well === well);
+      const wellSortedKeys = dataByWell[well].sort(
+        (a, b) => new Date(data[a].date).getTime() - new Date(data[b].date).getTime()
+      );
       
       const rows = wellSortedKeys
         .flatMap((key) => {
@@ -119,12 +168,11 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
             .map(({ hour, volume }, index) => {
               const isFirstRowOfDay = index === 0;
 
-              if (isFirstRowOfDay) {
-                 runningHidrometro += volume;
-              } else {
-                if (volume !== lastVolume) {
+              // This logic calculates the running hydrometer reading
+              if (lastVolume === -1) { // First item
                   runningHidrometro += volume;
-                }
+              } else if (volume !== lastVolume) {
+                  runningHidrometro += volume;
               }
               
               const rowData = [
@@ -186,17 +234,6 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     URL.revokeObjectURL(url);
   };
 
-  const sortedKeys = Object.keys(data).sort(
-    (a, b) => {
-      const dateA = new Date(data[a].date);
-      const dateB = new Date(data[b].date);
-      if (dateA.getTime() !== dateB.getTime()) {
-        return dateA.getTime() - dateB.getTime();
-      }
-      return data[a].well.localeCompare(data[b].well);
-    }
-  );
-
   const confirmDelete = () => {
     if (deleteCandidate) {
       onDelete(deleteCandidate);
@@ -218,12 +255,10 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     let lastVolume = -1;
 
     for (const item of filteredAllocation) {
-      if (detailed.length === 0) {
-        runningHidrometro += item.volume;
-      } else {
-        if (item.volume !== lastVolume) {
+      if (lastVolume === -1) { // First item
           runningHidrometro += item.volume;
-        }
+      } else if (item.volume !== lastVolume) {
+          runningHidrometro += item.volume;
       }
       detailed.push({ ...item, hidrometroCalculado: runningHidrometro });
       lastVolume = item.volume;
@@ -233,38 +268,68 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
   };
 
   const deleteCandidateDate = deleteCandidate ? data[deleteCandidate]?.date : null;
+  const hasFilters = filterWell || filterYear || filterMonth;
 
   return (
     <>
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <div>
-            <CardTitle>Relatório Mensal</CardTitle>
-            <CardDescription>
-              Resumo das alocações diárias salvas.
-            </CardDescription>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle>Relatório Mensal</CardTitle>
+                <CardDescription>
+                  Resumo das alocações diárias salvas. Filtre por poço, ano e mês.
+                </CardDescription>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button disabled={sortedKeys.length === 0} className="w-full sm:w-auto">
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar Relatório
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => handleExport("csv")}>
+                    Exportar como CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleExport("xlsx")}>
+                    Exportar como XLSX
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleExport("pdf")}>
+                    Exportar como PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button disabled={sortedKeys.length === 0}>
-                <Download className="mr-2 h-4 w-4" />
-                Exportar Relatório
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onSelect={() => handleExport("csv")}>
-                Exportar como CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleExport("xlsx")}>
-                Exportar como XLSX
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleExport("pdf")}>
-                Exportar como PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </CardHeader>
         <CardContent>
+          {sortedKeys.length > 0 && (
+            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-muted/50">
+                <Select value={filterWell} onValueChange={setFilterWell}>
+                  <SelectTrigger><SelectValue placeholder="Filtrar por poço" /></SelectTrigger>
+                  <SelectContent>
+                    {filterOptions.wells.map(well => <SelectItem key={well} value={well}>{well}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filterYear} onValueChange={setFilterYear}>
+                  <SelectTrigger><SelectValue placeholder="Filtrar por ano" /></SelectTrigger>
+                  <SelectContent>
+                    {filterOptions.years.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger><SelectValue placeholder="Filtrar por mês" /></SelectTrigger>
+                  <SelectContent>
+                    {filterOptions.months.map(month => <SelectItem key={month} value={month}>{format(new Date(2000, Number(month) - 1), 'MMMM', {locale: ptBR})}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" onClick={clearFilters} disabled={!hasFilters}>
+                  <X className="mr-2 h-4 w-4" />
+                  Limpar Filtros
+                </Button>
+            </div>
+          )}
+
           {sortedKeys.length === 0 ? (
             <div className="flex min-h-[200px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
               <FileSpreadsheet className="h-12 w-12 text-muted-foreground" />
@@ -275,9 +340,19 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                 Gere e salve uma alocação diária para vê-la aqui.
               </p>
             </div>
+          ) : filteredKeys.length === 0 ? (
+             <div className="flex min-h-[200px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
+                <FileSpreadsheet className="h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold">
+                  Nenhum resultado encontrado
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Tente ajustar ou limpar os filtros para ver os resultados.
+                </p>
+            </div>
           ) : (
             <Accordion type="single" collapsible className="w-full">
-              {sortedKeys.map((key) => {
+              {filteredKeys.map((key) => {
                 const { total, well, hidrometro, date } = data[key];
                 const formattedDate = format(
                   parseISO(date),
@@ -291,7 +366,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                         <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 text-left hover:no-underline">
                           <div className="flex flex-col items-start">
                             <span>{formattedDate}</span>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                               <span>Poço: {well}</span>
                               <span>Hidrômetro: {hidrometro}</span>
                               <span>Total: {total.toFixed(2)} m³</span>
