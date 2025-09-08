@@ -125,7 +125,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
   }, [selectedDate, monthlyData, setValue]);
 
   useEffect(() => {
-    const vol = (hodometroAnterior >= 0 && hodometroAtual > hodometroAnterior) 
+    const vol = (hodometroAnterior > 0 && hodometroAtual > hodometroAnterior) 
       ? hodometroAtual - hodometroAnterior
       : 0;
     setTotalVolume(vol);
