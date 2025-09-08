@@ -65,7 +65,6 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
       const headers = [
         "Data",
         "Poço",
-        "Hidrômetro",
         "Hora",
         "Volume (m³)",
         "Diferença Diária (m³)",
@@ -89,7 +88,6 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
             return [[
                 format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
                 well,
-                Number(hidrometro).toFixed(2),
                 "N/A",
                 "0.00",
                 Number(total).toFixed(2),
@@ -106,14 +104,11 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
           return fullDayAllocation
             .map(({ hour, volume }, hourIndex) => {
               const isFirstRowOfDay = hourIndex === 0;
-
-              const hidrometroHora = hidrometroAnterior + cumulativeVolume + volume;
               cumulativeVolume += volume;
 
               const rowData = [
                 isFirstRowOfDay ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
                 well,
-                Number(hidrometroHora).toFixed(2),
                 `${hour}:00`,
                 volume.toFixed(2),
                 isFirstRowOfDay ? Number(total).toFixed(2) : "",
