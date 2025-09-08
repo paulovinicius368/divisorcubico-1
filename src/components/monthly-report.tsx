@@ -57,7 +57,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
       dataByWell[well][date] = data[date];
     }
 
-    const sortedDays = Object.keys(data).sort(
+    const allSortedDays = Object.keys(data).sort(
       (a, b) => new Date(a).getTime() - new Date(b).getTime()
     );
 
@@ -70,15 +70,16 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
         "Volume (m³)",
         "Diferença Diária (m³)",
       ];
+
+      const wellSortedDays = allSortedDays.filter(date => data[date].well === well);
       
-      const rows = sortedDays
-        .filter(date => data[date].well === well)
+      const rows = wellSortedDays
         .flatMap((date, dayIndex) => {
           const { allocation, hidrometro, total } = data[date];
           
           let hidrometroAnterior = 0;
           if (dayIndex > 0) {
-              const previousDayString = sortedDays[dayIndex - 1];
+              const previousDayString = wellSortedDays[dayIndex - 1];
               hidrometroAnterior = data[previousDayString]?.hidrometro ?? hidrometro - total;
           } else {
               hidrometroAnterior = hidrometro - total;
@@ -88,10 +89,10 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
             return [[
                 format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
                 well,
-                hidrometro.toFixed(2),
+                Number(hidrometro).toFixed(2),
                 "N/A",
                 "0.00",
-                total.toFixed(2),
+                Number(total).toFixed(2),
             ]];
           }
 
@@ -104,7 +105,6 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
 
           return fullDayAllocation
             .map(({ hour, volume }, hourIndex) => {
-              const isFirstPrintableRow = fullDayAllocation.slice(0, hourIndex + 1).filter(item => item.volume > 0).length === 1 && volume > 0;
               const isFirstRowOfDay = hourIndex === 0;
 
               const hidrometroHora = hidrometroAnterior + cumulativeVolume + volume;
@@ -113,10 +113,10 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
               const rowData = [
                 isFirstRowOfDay ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
                 well,
-                hidrometroHora.toFixed(2),
+                Number(hidrometroHora).toFixed(2),
                 `${hour}:00`,
                 volume.toFixed(2),
-                isFirstRowOfDay ? total.toFixed(2) : "",
+                isFirstRowOfDay ? Number(total).toFixed(2) : "",
               ];
 
               return rowData;
