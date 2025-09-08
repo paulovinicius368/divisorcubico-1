@@ -61,17 +61,24 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
       const headers = ["Data", "Poço", "Hidrômetro", "Hora", "Volume (m³)"];
       const rows = Object.entries(dataByWell[well])
         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-        .flatMap(([, { date, allocation, hodometro }]) =>
-          allocation
+        .flatMap(([, { date, allocation, hidrometro }]) => {
+          const hidrometroAnterior = hidrometro - (allocation.reduce((acc, curr) => acc + curr.volume, 0));
+          let cumulativeVolume = 0;
+          
+          return allocation
             .filter((item) => item.volume > 0)
-            .map(({ hour, volume }) => [
-              format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
-              well,
-              hodometro,
-              `${hour}:00`,
-              volume.toFixed(2),
-            ])
-        );
+            .map(({ hour, volume }) => {
+              cumulativeVolume += volume;
+              const hidrometroHora = hidrometroAnterior + cumulativeVolume;
+              return [
+                format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
+                well,
+                hidrometroHora.toFixed(2),
+                `${hour}:00`,
+                volume.toFixed(2),
+              ];
+            });
+        });
 
       const today = new Date().toISOString().slice(0, 10);
       const filename = `relatorio_${well}_${today}`;
@@ -165,7 +172,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
         ) : (
           <Accordion type="single" collapsible className="w-full">
             {sortedDays.map((day) => {
-              const { total, allocation, well, hodometro, date } = data[day];
+              const { total, allocation, well, hidrometro, date } = data[day];
               const formattedDate = format(
                 new Date(date + "T00:00:00"),
                 "EEEE, dd 'de' MMMM 'de' yyyy",
@@ -181,7 +188,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
                           Poço: {well}
                         </span>
                          <span className="font-mono text-sm text-muted-foreground">
-                          Hidrômetro: {hodometro}
+                          Hidrômetro: {hidrometro}
                         </span>
                         <span className="font-mono text-muted-foreground">
                           Total: {total.toFixed(2)} m³
