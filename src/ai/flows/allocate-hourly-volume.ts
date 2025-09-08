@@ -54,7 +54,12 @@ The final response must be a single JSON array of 24 objects. Each object must h
 Total Daily Volume: {{{totalDailyVolume}}}
 Well: {{{well}}}
 
-The volume for each hour should vary throughout the 24 hours (0-23) based on the typical daily water usage patterns for the specified well. The sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'. The volume for each hour must not be the same. Distribute the volume only during the operating hours of the well, leaving others as zero.
+The volume for each hour should vary throughout the 24 hours (0-23). The sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'. The volume for each hour must not be the same.
+
+Follow these specific operating hours:
+- If the well is "MAAG", distribute the volume only between the hours of 6 and 18 (inclusive). All other hours must have a volume of 0.
+- If the well is "PECUÁRIA", distribute the volume only between the hours of 6 and 21 (inclusive). All other hours must have a volume of 0.
+- For any other well, use typical water usage patterns to determine the operating hours, leaving non-operating hours with a volume of 0.
 `,
   config: {
     safetySettings: [
