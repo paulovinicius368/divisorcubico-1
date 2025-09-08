@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, subDays } from "date-fns";
+import { format, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Calendar as CalendarIcon,
   Loader2,
   Save,
+  X,
 } from "lucide-react";
 
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
@@ -71,9 +72,11 @@ type DailyAllocationProps = {
     hidrometro: number
   ) => void;
   monthlyData: MonthlyData;
+  editDate: string | null;
+  onClearEdit: () => void;
 };
 
-export default function DailyAllocation({ onSave, monthlyData }: DailyAllocationProps) {
+export default function DailyAllocation({ onSave, monthlyData, editDate, onClearEdit }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     new Date()
   );
@@ -91,11 +94,36 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
     },
   });
 
-  const { watch, setValue, getValues, reset } = form;
+  const { watch, setValue, getValues, reset, control } = form;
   const hidrometroAnterior = watch("hidrometroAnterior");
   const hidrometroAtual = watch("hidrometroAtual");
 
+  const isEditing = !!editDate;
+
   useEffect(() => {
+    if (editDate && monthlyData[editDate]) {
+      const data = monthlyData[editDate];
+      const previousDay = subDays(parseISO(editDate), 1);
+      const previousDayString = format(previousDay, "yyyy-MM-dd");
+      const previousDayData = monthlyData[previousDayString];
+      
+      setSelectedDate(parseISO(editDate));
+      setValue("well", data.well);
+      setValue("hidrometroAtual", data.hidrometro);
+      setValue("hidrometroAnterior", previousDayData?.hidrometro ?? 0);
+    } else if (!isEditing) {
+      reset({
+        hidrometroAnterior: 0, 
+        hidrometroAtual: 0,
+        well: getValues('well')
+      });
+    }
+  }, [editDate, monthlyData, setValue, reset, getValues, isEditing]);
+
+
+  useEffect(() => {
+    if (isEditing) return; // Don't auto-update previous odometer when editing
+
     if (selectedDate) {
       const previousDay = subDays(selectedDate, 1);
       const previousDayString = format(previousDay, "yyyy-MM-dd");
@@ -104,7 +132,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
       const previousOdometer = previousDayData?.hidrometro ?? 0;
       setValue("hidrometroAnterior", previousOdometer, { shouldValidate: true });
     }
-  }, [selectedDate, monthlyData, setValue]);
+  }, [selectedDate, monthlyData, setValue, isEditing]);
 
   useEffect(() => {
     const vol = (hidrometroAnterior > 0 && hidrometroAtual > hidrometroAnterior) 
@@ -138,10 +166,14 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
         hidrometroAtual: 0,
       });
 
-      // Advance date to next day
-      const nextDay = new Date(selectedDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      setSelectedDate(nextDay);
+      // Advance date to next day if not editing
+      if (!isEditing) {
+        const nextDay = new Date(selectedDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        setSelectedDate(nextDay);
+      } else {
+        onClearEdit(); // Clear edit mode after saving
+      }
     }
   };
 
@@ -154,7 +186,6 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
     const calculatedVolume = totalVolume;
 
     if (calculatedVolume <= 0) {
-      // If volume is zero or less, just save the odometer reading and advance.
       handleSaveAndAdvance([], 0);
       setIsLoading(false);
       return;
@@ -166,7 +197,6 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
         well: values.well,
       });
       setAllocationResult(result);
-      // Automatically save after generating allocation
       handleSaveAndAdvance(result, calculatedVolume);
     } catch (e: any) {
       if (e.message && e.message.includes('503')) {
@@ -184,10 +214,19 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
     <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle>Configurar Alocação</CardTitle>
-          <CardDescription>
-            Insira os dados para salvar o lançamento diário.
-          </CardDescription>
+           <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>{isEditing ? 'Editar Lançamento' : 'Configurar Alocação'}</CardTitle>
+              <CardDescription>
+                {isEditing ? `Modificando dados do dia ${format(parseISO(editDate!), 'dd/MM/yyyy')}.` : 'Insira os dados para salvar o lançamento diário.'}
+              </CardDescription>
+            </div>
+            {isEditing && (
+              <Button variant="ghost" size="icon" onClick={() => { onClearEdit(); reset(); setSelectedDate(new Date())}}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -202,6 +241,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
                         "w-full justify-start text-left font-normal",
                         !selectedDate && "text-muted-foreground"
                       )}
+                      disabled={isEditing}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {selectedDate ? (
@@ -218,21 +258,22 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
                       onSelect={setSelectedDate}
                       initialFocus
                       locale={ptBR}
+                      disabled={isEditing}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
 
               <FormField
-                control={form.control}
+                control={control}
                 name="well"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Poços de Captação</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
                       value={field.value}
+                      disabled={isEditing}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -251,7 +292,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
               />
 
               <FormField
-                control={form.control}
+                control={control}
                 name="hidrometroAnterior"
                 render={({ field }) => (
                   <FormItem>
@@ -272,7 +313,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
               />
 
               <FormField
-                control={form.control}
+                control={control}
                 name="hidrometroAtual"
                 render={({ field }) => (
                   <FormItem>
@@ -314,7 +355,7 @@ export default function DailyAllocation({ onSave, monthlyData }: DailyAllocation
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Salvar Lançamento
+                    {isEditing ? 'Atualizar Lançamento' : 'Salvar Lançamento'}
                   </>
                 )}
               </Button>

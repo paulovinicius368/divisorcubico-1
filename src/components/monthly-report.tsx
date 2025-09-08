@@ -1,5 +1,5 @@
 "use client";
-
+import { useState } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -28,7 +28,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, FileSpreadsheet } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Download, FileSpreadsheet, Pencil, Trash2 } from "lucide-react";
 import type { MonthlyData } from "./cube-splitter-app";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,13 +48,17 @@ import * as XLSX from "xlsx";
 
 type MonthlyReportProps = {
   data: MonthlyData;
+  onEdit: (date: string) => void;
+  onDelete: (date: string) => void;
 };
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-export default function MonthlyReport({ data }: MonthlyReportProps) {
+export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportProps) {
+  const [deleteCandidate, setDeleteCandidate] = useState<string | null>(null);
+
   const handleExport = (formatType: "csv" | "xlsx" | "pdf") => {
     if (typeof window === "undefined") return;
 
@@ -153,105 +167,135 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
     (a, b) => new Date(a).getTime() - new Date(b).getTime()
   );
 
+  const confirmDelete = () => {
+    if (deleteCandidate) {
+      onDelete(deleteCandidate);
+      setDeleteCandidate(null);
+    }
+  };
+
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <div>
-          <CardTitle>Relatório Mensal</CardTitle>
-          <CardDescription>
-            Resumo das alocações diárias salvas.
-          </CardDescription>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button disabled={sortedDays.length === 0}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar Relatório
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onSelect={() => handleExport("csv")}>
-              Exportar como CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handleExport("xlsx")}>
-              Exportar como XLSX
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handleExport("pdf")}>
-              Exportar como PDF
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </CardHeader>
-      <CardContent>
-        {sortedDays.length === 0 ? (
-          <div className="flex min-h-[200px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
-            <FileSpreadsheet className="h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold">
-              Nenhum dado no relatório
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Gere e salve uma alocação diária para vê-la aqui.
-            </p>
+    <>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <div>
+            <CardTitle>Relatório Mensal</CardTitle>
+            <CardDescription>
+              Resumo das alocações diárias salvas.
+            </CardDescription>
           </div>
-        ) : (
-          <Accordion type="single" collapsible className="w-full">
-            {sortedDays.map((day) => {
-              const { total, allocation, well, hidrometro, date } = data[day];
-              const formattedDate = format(
-                new Date(date + "T00:00:00"),
-                "EEEE, dd 'de' MMMM 'de' yyyy",
-                { locale: ptBR }
-              );
-              return (
-                <AccordionItem value={day} key={day}>
-                  <AccordionTrigger>
-                    <div className="flex w-full items-center justify-between pr-4">
-                      <span>{formattedDate}</span>
-                      <div className="flex items-center gap-4">
-                        <span className="font-mono text-sm text-muted-foreground">
-                          Poço: {well}
-                        </span>
-                         <span className="font-mono text-sm text-muted-foreground">
-                          Hidrômetro: {hidrometro}
-                        </span>
-                        <span className="font-mono text-muted-foreground">
-                          Total: {total.toFixed(2)} m³
-                        </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={sortedDays.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar Relatório
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onSelect={() => handleExport("csv")}>
+                Exportar como CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExport("xlsx")}>
+                Exportar como XLSX
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExport("pdf")}>
+                Exportar como PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardHeader>
+        <CardContent>
+          {sortedDays.length === 0 ? (
+            <div className="flex min-h-[200px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center">
+              <FileSpreadsheet className="h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">
+                Nenhum dado no relatório
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Gere e salve uma alocação diária para vê-la aqui.
+              </p>
+            </div>
+          ) : (
+            <Accordion type="single" collapsible className="w-full">
+              {sortedDays.map((day) => {
+                const { total, allocation, well, hidrometro, date } = data[day];
+                const formattedDate = format(
+                  new Date(date + "T00:00:00"),
+                  "EEEE, dd 'de' MMMM 'de' yyyy",
+                  { locale: ptBR }
+                );
+                return (
+                  <AccordionItem value={day} key={day}>
+                    <AccordionTrigger>
+                      <div className="flex w-full items-center justify-between pr-4">
+                        <div className="flex flex-col items-start">
+                          <span>{formattedDate}</span>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                             <span>Poço: {well}</span>
+                             <span>Hidrômetro: {hidrometro}</span>
+                             <span>Total: {total.toFixed(2)} m³</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="ghost" size="icon" onClick={() => onEdit(day)}>
+                              <Pencil className="h-4 w-4 text-blue-500"/>
+                           </Button>
+                           <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(day)}>
+                              <Trash2 className="h-4 w-4 text-red-500"/>
+                           </Button>
+                        </div>
+
                       </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Hora</TableHead>
-                          <TableHead className="text-right">
-                            Volume (m³)
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {allocation
-                          .filter((item) => item.volume > 0)
-                          .map(({ hour, volume }) => (
-                            <TableRow key={hour}>
-                              <TableCell>{`${hour}:00 - ${
-                                hour + 1
-                              }:00`}</TableCell>
-                              <TableCell className="text-right font-mono">
-                                {volume.toFixed(2)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        )}
-      </CardContent>
-    </Card>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Hora</TableHead>
+                            <TableHead className="text-right">
+                              Volume (m³)
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {allocation
+                            .filter((item) => item.volume > 0)
+                            .map(({ hour, volume }) => (
+                              <TableRow key={hour}>
+                                <TableCell>{`${hour}:00 - ${
+                                  hour + 1
+                                }:00`}</TableCell>
+                                <TableCell className="text-right font-mono">
+                                  {volume.toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          )}
+        </CardContent>
+      </Card>
+      <AlertDialog open={!!deleteCandidate} onOpenChange={(open) => !open && setDeleteCandidate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. Isso excluirá permanentemente o
+              lançamento do dia {deleteCandidate && format(new Date(deleteCandidate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteCandidate(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

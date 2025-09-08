@@ -21,6 +21,8 @@ export type MonthlyData = Record<
 
 export default function CubeSplitterApp() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData>({});
+  const [activeTab, setActiveTab] = useState("daily");
+  const [editDate, setEditDate] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSaveDay = (
@@ -38,6 +40,25 @@ export default function CubeSplitterApp() {
       title: "Salvo com sucesso!",
       description: `Os dados de ${date} foram adicionados ao relatório mensal.`,
     });
+    setEditDate(null);
+  };
+
+  const handleDeleteDay = (date: string) => {
+    setMonthlyData(prev => {
+      const newData = { ...prev };
+      delete newData[date];
+      return newData;
+    });
+    toast({
+      title: "Excluído com sucesso!",
+      description: `Os dados de ${date} foram removidos.`,
+      variant: "destructive"
+    });
+  };
+
+  const handleEditDay = (date: string) => {
+    setEditDate(date);
+    setActiveTab("daily");
   };
 
   return (
@@ -52,16 +73,25 @@ export default function CubeSplitterApp() {
         </div>
       </header>
 
-      <Tabs defaultValue="daily" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
           <TabsTrigger value="daily">Alocação Diária</TabsTrigger>
           <TabsTrigger value="monthly">Relatório Mensal</TabsTrigger>
         </TabsList>
         <TabsContent value="daily" className="pt-6">
-          <DailyAllocation onSave={handleSaveDay} monthlyData={monthlyData} />
+          <DailyAllocation 
+            onSave={handleSaveDay} 
+            monthlyData={monthlyData} 
+            editDate={editDate}
+            onClearEdit={() => setEditDate(null)}
+          />
         </TabsContent>
         <TabsContent value="monthly" className="pt-6">
-          <MonthlyReport data={monthlyData} />
+          <MonthlyReport 
+            data={monthlyData} 
+            onEdit={handleEditDay}
+            onDelete={handleDeleteDay}
+          />
         </TabsContent>
       </Tabs>
     </div>
