@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,7 +11,6 @@ import {
   Loader2,
   BarChart2,
   Save,
-  Gauge,
 } from "lucide-react";
 import {
   Bar,
@@ -63,14 +62,17 @@ import { Skeleton } from "./ui/skeleton";
 import { ChartContainer, ChartTooltipContent } from "./ui/chart";
 
 const formSchema = z.object({
-  totalVolume: z.coerce
+  hodometroAnterior: z.coerce
     .number({ invalid_type_error: "Por favor, insira um número." })
-    .positive("O volume deve ser um número positivo."),
+    .min(0, "O hodômetro deve ser um número positivo."),
+  hodometroAtual: z.coerce
+    .number({ invalid_type_error: "Por favor, insira um número." })
+    .min(0, "O hodômetro deve ser um número positivo."),
   well: z.string({ required_error: "Por favor, selecione um poço." }),
-  hodometro: z.coerce
-    .number({ invalid_type_error: "Por favor, insira um número." })
-    .positive("O hodômetro deve ser um número positivo."),
-});
+}).refine(data => data.hodometroAtual > data.hodometroAnterior, {
+  message: "Hodômetro atual deve ser maior que o anterior.",
+  path: ["hodometroAtual"],
+})
 
 type DailyAllocationProps = {
   onSave: (
@@ -90,21 +92,42 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
   const [allocationResult, setAllocationResult] =
     useState<AllocateHourlyVolumeOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [totalVolume, setTotalVolume] = useState(0);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      totalVolume: 1000,
+      hodometroAnterior: 0,
+      hodometroAtual: 0,
     },
   });
+
+  const { watch, setValue } = form;
+  const hodometroAnterior = watch("hodometroAnterior");
+  const hodometroAtual = watch("hodometroAtual");
+
+  useEffect(() => {
+    const vol = hodometroAtual - hodometroAnterior;
+    setTotalVolume(vol > 0 ? vol : 0);
+  }, [hodometroAnterior, hodometroAtual]);
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setAllocationResult(null);
     setError(null);
+
+    const calculatedVolume = values.hodometroAtual - values.hodometroAnterior;
+
+    if (calculatedVolume <= 0) {
+      setError("A diferença dos hodômetros deve resultar em um volume positivo.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const result = await allocateHourlyVolume({
-        totalDailyVolume: values.totalVolume,
+        totalDailyVolume: calculatedVolume,
         well: values.well,
       });
       setAllocationResult(result);
@@ -121,13 +144,17 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
       const dateString = format(selectedDate, "yyyy-MM-dd");
       onSave(
         dateString,
-        form.getValues("totalVolume"),
+        totalVolume,
         allocationResult,
         form.getValues("well"),
-        form.getValues("hodometro")
+        form.getValues("hodometroAtual")
       );
       setAllocationResult(null);
-      form.reset({ totalVolume: 1000, well: undefined, hodometro: undefined });
+      form.reset({
+        well: undefined,
+        hodometroAnterior: form.getValues("hodometroAtual"), // Pass current to previous
+        hodometroAtual: 0,
+      });
     }
   }
 
@@ -216,14 +243,14 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
 
               <FormField
                 control={form.control}
-                name="hodometro"
+                name="hodometroAnterior"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hodômetro</FormLabel>
+                    <FormLabel>Hodômetro Anterior</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Ex: 12345"
+                        placeholder="Leitura anterior"
                         {...field}
                       />
                     </FormControl>
@@ -234,14 +261,14 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
 
               <FormField
                 control={form.control}
-                name="totalVolume"
+                name="hodometroAtual"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Volume Diário Total (m³)</FormLabel>
+                    <FormLabel>Hodômetro Atual</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Ex: 1000"
+                        placeholder="Leitura atual"
                         {...field}
                       />
                     </FormControl>
@@ -249,9 +276,24 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
                   </FormItem>
                 )}
               />
+
+              <FormItem>
+                <FormLabel>Volume Diário Total (m³)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    readOnly
+                    disabled
+                    value={totalVolume.toFixed(2)}
+                    className="cursor-default bg-muted/50"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isLoading} className="w-full">
+              <Button type="submit" disabled={isLoading || totalVolume <= 0} className="w-full">
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -274,7 +316,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
           <CardTitle>Resultado da Alocação</CardTitle>
           <CardDescription>
             Visualização do volume distribuído por hora.
-          </CardDescription>
+          </Description>
         </CardHeader>
         <CardContent>
           {isLoading && (

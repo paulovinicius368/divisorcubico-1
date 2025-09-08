@@ -15,6 +15,7 @@ export type MonthlyData = Record<
     allocation: AllocateHourlyVolumeOutput;
     well: string;
     hodometro: number;
+    date: string;
   }
 >;
 
@@ -31,7 +32,7 @@ export default function CubeSplitterApp() {
   ) => {
     setMonthlyData((prev) => ({
       ...prev,
-      [date]: { total, allocation, well, hodometro },
+      [date]: { total, allocation, well, hodometro, date },
     }));
     toast({
       title: "Salvo com sucesso!",

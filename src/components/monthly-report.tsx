@@ -45,7 +45,7 @@ interface jsPDFWithAutoTable extends jsPDF {
 }
 
 export default function MonthlyReport({ data }: MonthlyReportProps) {
-  const handleExport = (format: "csv" | "xlsx" | "pdf") => {
+  const handleExport = (formatType: "csv" | "xlsx" | "pdf") => {
     if (typeof window === "undefined") return;
 
     const dataByWell: Record<string, typeof data> = {};
@@ -61,7 +61,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
       const headers = ["Data", "Poço", "Hodômetro", "Hora", "Volume (m³)"];
       const rows = Object.entries(dataByWell[well])
         .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-        .flatMap(([date, { allocation, hodometro }]) =>
+        .flatMap(([, { date, allocation, hodometro }]) =>
           allocation
             .filter((item) => item.volume > 0)
             .map(({ hour, volume }) => [
@@ -76,11 +76,11 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
       const today = new Date().toISOString().slice(0, 10);
       const filename = `relatorio_${well}_${today}`;
 
-      if (format === "csv") {
+      if (formatType === "csv") {
         const csvContent = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         downloadBlob(blob, `${filename}.csv`);
-      } else if (format === "xlsx") {
+      } else if (formatType === "xlsx") {
         const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório");
@@ -92,7 +92,7 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
           type: "application/octet-stream",
         });
         downloadBlob(blob, `${filename}.xlsx`);
-      } else if (format === "pdf") {
+      } else if (formatType === "pdf") {
         const doc = new jsPDF() as jsPDFWithAutoTable;
         doc.autoTable({
           head: [headers],
@@ -165,9 +165,9 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
         ) : (
           <Accordion type="single" collapsible className="w-full">
             {sortedDays.map((day) => {
-              const { total, allocation, well, hodometro } = data[day];
+              const { total, allocation, well, hodometro, date } = data[day];
               const formattedDate = format(
-                new Date(day + "T00:00:00"),
+                new Date(date + "T00:00:00"),
                 "EEEE, dd 'de' MMMM 'de' yyyy",
                 { locale: ptBR }
               );
