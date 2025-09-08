@@ -54,21 +54,7 @@ The final response must be a single JSON array of 24 objects. Each object must h
 Total Daily Volume: {{{totalDailyVolume}}}
 Well: {{{well}}}
 
-{{#if isMaagWell}}
-The allocation for the "MAAG" well must follow these specific rules:
-1.  **Active Hours:** The water volume is distributed ONLY between the hours of 6 (6:00) and 18 (18:59).
-2.  **Inactive Hours:** The 'volume' for all other hours (0-5 and 19-23) must be explicitly set to 0.
-3.  **Hourly Distribution Rules:**
-    - The hourly volumes for hours 6, 7, 8, 9, 10, 11, and 12 must all be the same value (let's call this Value A).
-    - The hourly volumes for hours 13, 14, and 15 must be different from each other (let's call these Value B, Value C, Value D).
-    - The hourly volumes for hours 16, 17, and 18 must all be the same value (let's call this Value E).
-4.  **CRITICAL SUMMATION RULE:** The sum of the unique representative volumes MUST equal the 'totalDailyVolume'.
-    - **Calculation:** (Value A) + (Value B) + (Value C) + (Value D) + (Value E) = totalDailyVolume.
-    - **Example:** If totalDailyVolume is 100, a valid distribution could be A=50, B=10, C=15, D=5, E=20. The sum is 50+10+15+5+20 = 100.
-    - You must first determine these 5 values (A, B, C, D, E) whose sum is totalDailyVolume, and then use them to build the final 24-hour array.
-{{else}}
-For other wells, the volume for each hour should vary throughout the 24 hours (0-23) based on typical daily water usage patterns, and the sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'.
-{{/if}}
+For the selected well, the volume for each hour should vary throughout the 24 hours (0-23) based on typical daily water usage patterns, and the sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'.
 `,
   config: {
     safetySettings: [
@@ -92,6 +78,49 @@ For other wells, the volume for each hour should vary throughout the 24 hours (0
   },
 });
 
+function allocateMaagVolume(
+  totalDailyVolume: number
+): AllocateHourlyVolumeOutput {
+  // 1. Generate 5 random values for A, B, C, D, E
+  let a = Math.random();
+  let b = Math.random();
+  let c = Math.random();
+  let d = Math.random();
+  let e = Math.random();
+
+  // 2. Calculate the sum of these random values
+  const randomSum = a + b + c + d + e;
+
+  // 3. Scale these values so their sum equals totalDailyVolume
+  const scale = totalDailyVolume / randomSum;
+  const valueA = a * scale;
+  const valueB = b * scale;
+  const valueC = c * scale;
+  const valueD = d * scale;
+  const valueE = e * scale;
+
+  // 4. Build the 24-hour allocation array
+  const allocation: AllocateHourlyVolumeOutput = [];
+  for (let hour = 0; hour < 24; hour++) {
+    let volume = 0;
+    if (hour >= 6 && hour <= 12) {
+      volume = valueA; // Period 1 (7 hours)
+    } else if (hour === 13) {
+      volume = valueB;
+    } else if (hour === 14) {
+      volume = valueC;
+    } else if (hour === 15) {
+      volume = valueD;
+    } else if (hour >= 16 && hour <= 18) {
+      volume = valueE; // Period 3 (3 hours)
+    }
+    allocation.push({ hour, volume });
+  }
+
+  return allocation;
+}
+
+
 const allocateHourlyVolumeFlow = ai.defineFlow(
   {
     name: 'allocateHourlyVolumeFlow',
@@ -99,10 +128,13 @@ const allocateHourlyVolumeFlow = ai.defineFlow(
     outputSchema: AllocateHourlyVolumeOutputSchema,
   },
   async input => {
-    const {output} = await prompt({
-      ...input,
-      isMaagWell: input.well === 'MAAG',
-    });
-    return output!;
+    if (input.well === 'MAAG') {
+      // Use deterministic TypeScript logic for MAAG well
+      return allocateMaagVolume(input.totalDailyVolume);
+    } else {
+      // Use AI for other wells
+      const {output} = await prompt(input);
+      return output!;
+    }
   }
 );
