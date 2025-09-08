@@ -75,8 +75,14 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
         .filter(date => data[date].well === well)
         .flatMap((date, dayIndex) => {
           const { allocation, hidrometro, total } = data[date];
-          const previousDay = dayIndex > 0 ? sortedDays[dayIndex - 1] : null;
-          const hidrometroAnterior = previousDay ? data[previousDay].hidrometro : hidrometro - total;
+          
+          let hidrometroAnterior = 0;
+          if (dayIndex > 0) {
+              const previousDayString = sortedDays[dayIndex - 1];
+              hidrometroAnterior = data[previousDayString]?.hidrometro ?? hidrometro - total;
+          } else {
+              hidrometroAnterior = hidrometro - total;
+          }
 
           if (allocation.length === 0) {
             return [[
@@ -90,19 +96,27 @@ export default function MonthlyReport({ data }: MonthlyReportProps) {
           }
 
           let cumulativeVolume = 0;
-          return allocation
-            .filter((item) => item.volume > 0)
+          const fullDayAllocation = Array.from({ length: 24 }, (_, i) => {
+            const hourData = allocation.find(a => a.hour === i);
+            return { hour: i, volume: hourData?.volume ?? 0 };
+          });
+
+
+          return fullDayAllocation
             .map(({ hour, volume }, hourIndex) => {
+              const isFirstPrintableRow = fullDayAllocation.slice(0, hourIndex + 1).filter(item => item.volume > 0).length === 1 && volume > 0;
+              const isFirstRowOfDay = hourIndex === 0;
+
               const hidrometroHora = hidrometroAnterior + cumulativeVolume + volume;
               cumulativeVolume += volume;
 
               const rowData = [
-                hourIndex === 0 ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
+                isFirstRowOfDay ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
                 well,
                 hidrometroHora.toFixed(2),
                 `${hour}:00`,
                 volume.toFixed(2),
-                hourIndex === 0 ? total.toFixed(2) : "",
+                isFirstRowOfDay ? total.toFixed(2) : "",
               ];
 
               return rowData;
