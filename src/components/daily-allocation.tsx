@@ -102,7 +102,7 @@ export default function DailyAllocation({ onSave }: DailyAllocationProps) {
     },
   });
 
-  const { watch, setValue } = form;
+  const { watch } = form;
   const hodometroAnterior = watch("hodometroAnterior");
   const hodometroAtual = watch("hodometroAtual");
 
