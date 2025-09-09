@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -9,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { Cuboid } from '@/components/icons';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
   const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
     minLength: false,
     hasUppercase: false,
@@ -56,6 +58,14 @@ export default function SignupPage() {
   useEffect(() => {
     validatePassword(password);
   }, [password]);
+
+  useEffect(() => {
+    if (confirmPassword.length > 0) {
+      setPasswordsMatch(password === confirmPassword);
+    } else {
+      setPasswordsMatch(null);
+    }
+  }, [password, confirmPassword]);
 
 
   const formatName = (name: string) => {
@@ -224,6 +234,15 @@ export default function SignupPage() {
                   <span className="sr-only">{showConfirmPassword ? 'Ocultar senha' : 'Mostrar senha'}</span>
                 </Button>
               </div>
+              {passwordsMatch !== null && (
+                <div className={cn(
+                    "flex items-center text-xs mt-1",
+                    passwordsMatch ? "text-green-600" : "text-destructive"
+                )}>
+                  {passwordsMatch ? <CheckCircle2 className="h-3 w-3 mr-1"/> : <XCircle className="h-3 w-3 mr-1"/>}
+                  {passwordsMatch ? "As senhas são iguais." : "As senhas não são iguais."}
+                </div>
+              )}
             </div>
              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 <span className="font-medium">A senha deve conter:</span>
@@ -241,7 +260,7 @@ export default function SignupPage() {
                     </span>
                 ))}
              </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || !passwordsMatch}>
               {isLoading ? <Loader2 className="animate-spin" /> : 'Inscrever-se'}
             </Button>
           </form>
