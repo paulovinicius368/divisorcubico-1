@@ -8,14 +8,14 @@ const wellConfigs = {
     endHour: 18,
     limit: 19,
     // A more varied bell-curve pattern for volume distribution
-    pattern: [0.4, 0.6, 0.8, 0.95, 1.0, 1.0, 1.0, 1.0, 0.95, 0.8, 0.6, 0.5, 0.4],
+    pattern: [0.4, 0.6, 0.8, 0.95, 1.0, 0.95, 0.9, 0.85, 0.8, 0.7, 0.6, 0.5, 0.4],
   },
   "PECUÁRIA": {
     startHour: 6,
     endHour: 21,
     limit: 10,
     // A longer, more varied pattern for a longer operational window
-    pattern: [0.3, 0.45, 0.6, 0.75, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 0.95, 0.85, 0.7, 0.6, 0.5, 0.4],
+    pattern: [0.3, 0.45, 0.6, 0.75, 0.9, 1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.45, 0.4],
   },
   "TCHE": {
     startHour: 7,
