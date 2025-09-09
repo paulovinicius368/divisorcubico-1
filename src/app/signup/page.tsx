@@ -33,7 +33,7 @@ export default function SignupPage() {
       } else if (error.code === 'auth/weak-password') {
         description = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
       } else if (error.code === 'auth/invalid-email') {
-          description = 'O e-mail fornecido não é válido.'
+          description = 'O e-mail fornecido não é válido.';
       }
       
       toast({
