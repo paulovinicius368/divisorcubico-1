@@ -78,7 +78,7 @@ type DailyAllocationProps = {
 
 export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    new Date()
+    undefined
   );
   const [isLoading, setIsLoading] = useState(false);
   const [, setAllocationResult] =
@@ -101,6 +101,14 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   const currentWell = watch("well");
 
   const isEditing = !!editKey;
+
+  useEffect(() => {
+    // This ensures new Date() is only called on the client
+    if(!selectedDate) {
+      setSelectedDate(new Date());
+    }
+  }, [selectedDate]);
+
 
   useEffect(() => {
     if (editKey && monthlyData[editKey]) {
