@@ -46,112 +46,106 @@ export function allocateVolume(
      return { allocation };
   }
 
-  // 1. Initial Distribution based on the pattern
-  const totalPatternWeight = pattern.reduce((sum, val) => sum + val, 0);
+  const operationalHours = endHour - startHour + 1;
+  const patternSum = pattern.slice(0, operationalHours).reduce((sum, p) => sum + p, 0);
+
+  // Initial distribution
   let allocation = Array.from({ length: 24 }, (_, hour) => {
+    let volume = 0;
     if (hour >= startHour && hour <= endHour) {
       const patternIndex = hour - startHour;
-      if (patternIndex < pattern.length) {
-        const weight = pattern[patternIndex] || 0;
-        const initialVolume = (totalDailyVolume * weight) / totalPatternWeight;
-        return { hour, volume: initialVolume };
+      const weight = pattern[patternIndex] || 0;
+      if (patternSum > 0) {
+        volume = (totalDailyVolume * weight) / patternSum;
       }
     }
-    return { hour, volume: 0 };
+    return { hour, volume, atLimit: false };
   });
 
-  // 2. Check for and handle overflows
   let overflowWarning: string | undefined = undefined;
-  for (let i = 0; i < 5; i++) { // Iterate a few times to smooth out redistribution
-    let excessVolume = 0;
-    let totalUnderLimitWeight = 0;
 
-    // Identify excess volume and calculate total weight of non-offending hours
+  // Iteratively redistribute excess volume
+  for (let i = 0; i < 10; i++) { // More iterations for better smoothing
+    let totalExcess = 0;
+    
+    // Calculate excess and cap volumes
     allocation.forEach(item => {
-      if (item.volume > limit) {
-        excessVolume += item.volume - limit;
-        item.volume = limit; // Cap the volume at the limit
+      if (!item.atLimit && item.volume > limit) {
+        totalExcess += item.volume - limit;
+        item.volume = limit;
+        item.atLimit = true;
       }
     });
 
-    if (excessVolume > 0) {
-        // Calculate the total weight of hours that are still under the limit
-        allocation.forEach(item => {
-            if (item.hour >= startHour && item.hour <= endHour && item.volume < limit) {
-                const patternIndex = item.hour - startHour;
-                if(patternIndex < pattern.length) {
-                  // The weight for redistribution should be how much "room" is left.
-                  totalUnderLimitWeight += (limit - item.volume);
-                }
-            }
-        });
-
-        // Redistribute the excess volume proportionally to the hours under the limit
-        if(totalUnderLimitWeight > 0.01){
-            allocation.forEach(item => {
-                if (item.hour >= startHour && item.hour <= endHour && item.volume < limit) {
-                    const room = limit - item.volume;
-                    const share = excessVolume * (room / totalUnderLimitWeight);
-                    item.volume += share;
-                }
-            });
-        } else {
-             // If all hours are at the limit, we cannot redistribute.
-             overflowWarning = "Hourly volume limit exceeded.";
-             break;
-        }
-    } else {
-      break; // No excess volume, distribution is fine
+    if (totalExcess < 0.01) {
+      break; // No more excess to redistribute
     }
-  }
-  
-  // Final check for overflow after redistribution attempts
-  if (!overflowWarning) {
-    const maxAllocated = Math.max(...allocation.map(a => a.volume));
-    if (maxAllocated > limit + 0.001) { // Add a small tolerance for float precision
+
+    const availableHoursForRedistribution = allocation.filter(item => !item.atLimit && item.hour >= startHour && item.hour <= endHour);
+    if (availableHoursForRedistribution.length === 0) {
       overflowWarning = "Hourly volume limit exceeded.";
-      // Recalculate excess one last time if warning is set here
-      let finalExcess = 0;
-      allocation.forEach(item => {
-        if(item.volume > limit) {
-          finalExcess += item.volume - limit;
-          item.volume = limit;
-        }
+      break; // No hours available to take on more volume
+    }
+
+    const totalCapacity = availableHoursForRedistribution.reduce((sum, item) => sum + (limit - item.volume), 0);
+
+    if (totalCapacity < totalExcess) {
+      // Distribute what we can, the rest is overflow
+      availableHoursForRedistribution.forEach(item => {
+        const proportion = (limit - item.volume) / totalCapacity;
+        item.volume += totalExcess * proportion;
       });
-      // If there's still excess, it means total volume cannot be allocated.
-      // This case is rare but could happen with rounding.
+      overflowWarning = "Hourly volume limit exceeded.";
+      break;
+    } else {
+      // Redistribute the excess proportionally to the remaining capacity
+      availableHoursForRedistribution.forEach(item => {
+          if (totalCapacity > 0) {
+            const proportion = (limit - item.volume) / totalCapacity;
+            item.volume += totalExcess * proportion;
+          }
+      });
     }
   }
 
 
-  // 3. Rounding and Final Sum Correction
-  let currentTotal = 0;
-  allocation.forEach(item => {
-    item.volume = parseFloat(item.volume.toFixed(2));
-    currentTotal += item.volume;
-  });
+  // Final Sum Correction due to floating point math
+  let currentTotal = allocation.reduce((sum, item) => sum + item.volume, 0);
+  let difference = totalDailyVolume - currentTotal;
   
-  let difference = parseFloat((totalDailyVolume - currentTotal).toFixed(2));
-  
-  // Distribute the rounding difference to the hour with the highest volume that is not at the limit
-  if (difference !== 0) {
-     const eligibleHours = allocation
+  if (Math.abs(difference) > 0.001) {
+    const eligibleForCorrection = allocation
         .map((item, index) => ({...item, index}))
-        .filter(item => item.hour >= startHour && item.hour <= endHour && item.volume < limit)
+        .filter(item => item.hour >= startHour && item.hour <= endHour && !item.atLimit)
         .sort((a,b) => b.volume - a.volume);
-
-      if(eligibleHours.length > 0 && eligibleHours[0].index < allocation.length) {
-        allocation[eligibleHours[0].index].volume = parseFloat((allocation[eligibleHours[0].index].volume + difference).toFixed(2));
-      } else {
-        // If all are at the limit, add to the first operating hour and trigger warning
+    
+    if (eligibleForCorrection.length > 0) {
+        const targetIndex = eligibleForCorrection[0].index;
+        allocation[targetIndex].volume += difference;
+    } else {
+        // If all are at limit, add to the first operational hour
         const firstHourIndex = allocation.findIndex(a => a.hour === startHour);
         if (firstHourIndex !== -1) {
-          allocation[firstHourIndex].volume = parseFloat((allocation[firstHourIndex].volume + difference).toFixed(2));
-          overflowWarning = "Hourly volume limit exceeded.";
+             allocation[firstHourIndex].volume += difference;
+             if (allocation[firstHourIndex].volume > limit) {
+                 overflowWarning = "Hourly volume limit exceeded.";
+             }
         }
-      }
+    }
   }
-  
+
+  // Final check for any hour exceeding the limit after all corrections
+  const finalMaxVolume = Math.max(...allocation.map(a => a.volume));
+  if (finalMaxVolume > limit + 0.001) { // Add tolerance
+      overflowWarning = "Hourly volume limit exceeded.";
+      // Final cap, as redistribution failed.
+      allocation.forEach(item => {
+          if(item.volume > limit) {
+              item.volume = limit;
+          }
+      });
+  }
+
   return {
     allocation: allocation.map(a => ({hour: a.hour, volume: parseFloat(a.volume.toFixed(2))})),
     overflowWarning,
