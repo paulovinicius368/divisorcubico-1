@@ -38,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Download, FileSpreadsheet, Pencil, Trash2, X, Calendar as CalendarIcon } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Trash2, X, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import type { MonthlyData } from "./cube-splitter-app";
 import { format, parseISO, getYear, getMonth, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -150,6 +150,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
         "Volume (m³)",
         "Hidrômetro",
         "Diferença Diária (m³)",
+        "Observação"
       ];
   
       const wellSortedKeys = dataByWell[well].sort(
@@ -158,7 +159,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
       
       const rows = wellSortedKeys
         .flatMap((key, dayIndex) => {
-          const { allocation, total, hidrometro, date } = data[key];
+          const { allocation, total, hidrometro, date, overflowWarning } = data[key];
           
           const prevDayKey = dayIndex > 0 ? wellSortedKeys[dayIndex - 1] : null;
           const prevDayHidrometro = prevDayKey ? data[prevDayKey].hidrometro : hidrometro - total;
@@ -184,6 +185,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
               item.volume.toFixed(2),
               runningHidrometro.toFixed(2),
               isFirstRowOfDay ? Number(total).toFixed(2) : "",
+              isFirstRowOfDay && overflowWarning ? "Volume excedido" : ""
             ];
           });
         });
@@ -393,7 +395,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
           ) : (
             <Accordion type="single" collapsible className="w-full">
               {filteredKeys.map((key) => {
-                const { total, well, hidrometro, date } = data[key];
+                const { total, well, hidrometro, date, overflowWarning } = data[key];
                 const formattedDate = format(
                   parseISO(date),
                   "EEEE, dd 'de' MMMM 'de' yyyy",
@@ -401,7 +403,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                 );
                 const detailedAllocation = getDetailedAllocation(key);
                 return (
-                  <AccordionItem value={key} key={key}>
+                  <AccordionItem value={key} key={key} className={cn(overflowWarning && "bg-red-50/50 rounded-md")}>
                      <div className="flex w-full items-center justify-between border-b">
                         <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 text-left hover:no-underline">
                           <div className="flex flex-col items-start">
@@ -410,6 +412,12 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                               <span>Poço: {well}</span>
                               <span>Hidrômetro: {hidrometro}</span>
                               <span>Total: {total.toFixed(2)} m³</span>
+                              {overflowWarning && (
+                                <span className="flex items-center gap-1.5 text-red-600 font-medium">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  Ajuste Manual Necessário
+                                </span>
+                              )}
                             </div>
                           </div>
                         </AccordionTrigger>
@@ -428,7 +436,8 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                           <TableRow>
                             <TableHead>Hora</TableHead>
                             <TableHead>Volume (m³)</TableHead>
-                            <TableHead className="text-right">Hidrômetro</TableHead>
+                            <TableHead>Hidrômetro</TableHead>
+                            <TableHead className="text-right">Observação</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -438,15 +447,18 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                                 <TableCell>{`${hour}:00 - ${
                                   hour + 1
                                 }:00`}</TableCell>
-                                <TableCell>{volume.toFixed(2)}</TableCell>
-                                <TableCell className="text-right font-mono">
+                                <TableCell className={cn(volume > 19 && well === 'MAAG' && "text-red-600 font-bold")}>{volume.toFixed(2)}</TableCell>
+                                <TableCell className="font-mono">
                                   {hidrometroCalculado.toFixed(2)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {volume > 19 && well === 'MAAG' && <span className="text-red-600">Volume excedido</span>}
                                 </TableCell>
                               </TableRow>
                             ))
                           ) : (
                              <TableRow>
-                                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                <TableCell colSpan={4} className="text-center text-muted-foreground">
                                     Nenhuma vazão registrada neste dia.
                                 </TableCell>
                              </TableRow>

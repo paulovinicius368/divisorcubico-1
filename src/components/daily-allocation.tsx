@@ -67,7 +67,7 @@ type DailyAllocationProps = {
   onSave: (
     date: string,
     total: number,
-    allocation: AllocateHourlyVolumeOutput,
+    result: AllocateHourlyVolumeOutput,
     well: string,
     hidrometro: number
   ) => void;
@@ -128,6 +128,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         const well = getValues('well');
         resetForm(well, selectedDate);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editKey, monthlyData, reset]);
 
 
@@ -170,7 +171,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
 
   const handleSaveAndAdvance = (
-    allocation: AllocateHourlyVolumeOutput,
+    result: AllocateHourlyVolumeOutput,
     volume: number
   ) => {
     if (selectedDate) {
@@ -181,7 +182,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       onSave(
         dateString,
         volume,
-        allocation,
+        result,
         currentWellValue,
         currentHidrometroAtual
       );
@@ -217,7 +218,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       : 0;
 
     if (calculatedVolume <= 0 && values.hidrometroAnterior > 0) {
-      handleSaveAndAdvance([], calculatedVolume);
+      handleSaveAndAdvance({ allocation: [] }, calculatedVolume);
       setIsLoading(false);
       return;
     }
@@ -325,7 +326,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                       mode="single"
                       selected={selectedDate}
                       onSelect={(date) => {
-                        if (!isEditing && date) setSelectedDate(date);
+                        if (!isEditing && date) setSelectedDate(startOfDay(date));
                       }}
                       initialFocus
                       locale={ptBR}

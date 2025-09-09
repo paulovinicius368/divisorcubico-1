@@ -12,10 +12,11 @@ export type MonthlyData = Record<
   string, // Unique key, e.g., "YYYY-MM-DD-WELLNAME"
   {
     total: number;
-    allocation: AllocateHourlyVolumeOutput;
+    allocation: AllocateHourlyVolumeOutput['allocation'];
     well: string;
     hidrometro: number;
     date: string; // The date part of the key, e.g., "YYYY-MM-DD"
+    overflowWarning?: string;
   }
 >;
 
@@ -28,14 +29,14 @@ export default function CubeSplitterApp() {
   const handleSaveDay = (
     date: string,
     total: number,
-    allocation: AllocateHourlyVolumeOutput,
+    result: AllocateHourlyVolumeOutput,
     well: string,
     hidrometro: number
   ) => {
     const key = `${date}-${well}`;
     setMonthlyData((prev) => ({
       ...prev,
-      [key]: { total, allocation, well, hidrometro, date },
+      [key]: { total, allocation: result.allocation, well, hidrometro, date, overflowWarning: result.overflowWarning },
     }));
     toast({
       title: "Salvo com sucesso!",
