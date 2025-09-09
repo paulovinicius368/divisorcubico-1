@@ -2,15 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { useRouter } from "next/navigation";
+import { db, auth } from "@/lib/firebase";
 
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Cuboid } from "@/components/icons";
+import { Cuboid, LogOut } from "lucide-react";
 import DailyAllocation from "@/components/daily-allocation";
 import MonthlyReport from "@/components/monthly-report";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
+import { Button } from "./ui/button";
 
 export type MonthlyData = Record<
   string, // Unique key, e.g., "YYYY-MM-DD-WELLNAME"
@@ -30,6 +33,9 @@ export default function CubeSplitterApp() {
   const [activeTab, setActiveTab] = useState("daily");
   const [editKey, setEditKey] = useState<string | null>(null);
   const { toast } = useToast();
+  const [user] = useAuthState(auth);
+  const router = useRouter();
+
 
   const fetchAllocations = useCallback(async () => {
     setIsLoading(true);
@@ -124,6 +130,11 @@ export default function CubeSplitterApp() {
     setEditKey(key);
     setActiveTab("daily");
   };
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push('/login');
+  };
   
   const renderLoadingSkeleton = () => (
     <div className="pt-6">
@@ -140,14 +151,28 @@ export default function CubeSplitterApp() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 md:p-8">
-      <header className="mb-8 flex items-center gap-3">
-        <Cuboid className="h-10 w-10 text-primary" />
-        <div>
-          <h1 className="font-headline text-3xl font-bold tracking-tight text-primary md:text-4xl">
-            Divisor Cúbico
-          </h1>
-          <p className="text-muted-foreground">Divisor de Volume Hídrico</p>
+      <header className="mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 self-start">
+          <Cuboid className="h-10 w-10 text-primary" />
+          <div>
+            <h1 className="font-headline text-3xl font-bold tracking-tight text-primary md:text-4xl">
+              Divisor Cúbico
+            </h1>
+            <p className="text-muted-foreground">Divisor de Volume Hídrico</p>
+          </div>
         </div>
+        {user && (
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="text-right flex-grow">
+              <p className="text-sm font-medium">Olá, {user.displayName || user.email}</p>
+              <p className="text-xs text-muted-foreground">Bem-vindo(a) de volta!</p>
+            </div>
+            <Button variant="outline" size="icon" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only">Sair</span>
+            </Button>
+          </div>
+        )}
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
