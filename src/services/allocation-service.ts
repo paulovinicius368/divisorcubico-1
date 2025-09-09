@@ -7,22 +7,22 @@ const wellConfigs = {
     startHour: 6,
     endHour: 18,
     limit: 19,
-    // A simple bell-curve-like pattern for volume distribution
-    pattern: [0.5, 0.7, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.7, 0.5, 0.4],
+    // A more varied bell-curve pattern for volume distribution
+    pattern: [0.4, 0.6, 0.8, 0.95, 1.0, 1.0, 1.0, 1.0, 0.95, 0.8, 0.6, 0.5, 0.4],
   },
   "PECUÁRIA": {
     startHour: 6,
     endHour: 21,
     limit: 10,
-    // A longer pattern for a longer operational window
-    pattern: [0.4, 0.6, 0.8, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5],
+    // A longer, more varied pattern for a longer operational window
+    pattern: [0.3, 0.45, 0.6, 0.75, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 0.95, 0.85, 0.7, 0.6, 0.5, 0.4],
   },
   "TCHE": {
     startHour: 7,
     endHour: 19,
     limit: Infinity, // No limit
-    // A standard bell curve for typical usage
-    pattern: [0.5, 0.7, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.8, 0.6, 0.5],
+    // A more pronounced bell curve for typical usage
+    pattern: [0.4, 0.65, 0.85, 1.0, 1.0, 1.0, 1.0, 0.9, 0.75, 0.6, 0.5, 0.4],
   },
 };
 
@@ -52,9 +52,11 @@ export function allocateVolume(
   let allocation = Array.from({ length: 24 }, (_, hour) => {
     if (hour >= startHour && hour <= endHour) {
       const patternIndex = hour - startHour;
-      const weight = pattern[patternIndex] || 0;
-      const initialVolume = (totalDailyVolume * weight) / totalPatternWeight;
-      return { hour, volume: initialVolume };
+      if (patternIndex < pattern.length) {
+        const weight = pattern[patternIndex] || 0;
+        const initialVolume = (totalDailyVolume * weight) / totalPatternWeight;
+        return { hour, volume: initialVolume };
+      }
     }
     return { hour, volume: 0 };
   });
@@ -78,7 +80,9 @@ export function allocateVolume(
         allocation.forEach(item => {
             if (item.hour >= startHour && item.hour <= endHour && item.volume < limit) {
                 const patternIndex = item.hour - startHour;
-                totalUnderLimitWeight += pattern[patternIndex] || 0;
+                if(patternIndex < pattern.length) {
+                  totalUnderLimitWeight += pattern[patternIndex] || 0;
+                }
             }
         });
 
@@ -87,8 +91,10 @@ export function allocateVolume(
             allocation.forEach(item => {
                 if (item.hour >= startHour && item.hour <= endHour && item.volume < limit) {
                     const patternIndex = item.hour - startHour;
-                    const weight = pattern[patternIndex] || 0;
-                    item.volume += excessVolume * (weight / totalUnderLimitWeight);
+                    if(patternIndex < pattern.length) {
+                      const weight = pattern[patternIndex] || 0;
+                      item.volume += excessVolume * (weight / totalUnderLimitWeight);
+                    }
                 }
             });
         } else {
@@ -126,12 +132,15 @@ export function allocateVolume(
         .filter(item => item.hour >= startHour && item.hour <= endHour && item.volume < limit)
         .sort((a,b) => b.volume - a.volume);
 
-      if(eligibleHours.length > 0) {
+      if(eligibleHours.length > 0 && eligibleHours[0].index < allocation.length) {
         allocation[eligibleHours[0].index].volume = parseFloat((allocation[eligibleHours[0].index].volume + difference).toFixed(2));
       } else {
         // If all are at the limit, add to the first operating hour and trigger warning
-        allocation.find(a => a.hour === startHour)!.volume += difference;
-        overflowWarning = "Hourly volume limit exceeded.";
+        const firstHourIndex = allocation.findIndex(a => a.hour === startHour);
+        if (firstHourIndex !== -1) {
+          allocation[firstHourIndex].volume += difference;
+          overflowWarning = "Hourly volume limit exceeded.";
+        }
       }
   }
   
