@@ -40,7 +40,6 @@ export function allocateVolume(
 ): AllocateHourlyVolumeOutput {
   const config = wellConfigs[well as keyof typeof wellConfigs] || wellConfigs["TCHE"];
   const { startHour, endHour, limit, pattern } = config;
-  const operatingHours = endHour - startHour + 1;
 
   if (totalDailyVolume <= 0) {
      const allocation = Array.from({ length: 24 }, (_, i) => ({ hour: i, volume: 0 }));
@@ -81,20 +80,19 @@ export function allocateVolume(
             if (item.hour >= startHour && item.hour <= endHour && item.volume < limit) {
                 const patternIndex = item.hour - startHour;
                 if(patternIndex < pattern.length) {
-                  totalUnderLimitWeight += pattern[patternIndex] || 0;
+                  // The weight for redistribution should be how much "room" is left.
+                  totalUnderLimitWeight += (limit - item.volume);
                 }
             }
         });
 
         // Redistribute the excess volume proportionally to the hours under the limit
-        if(totalUnderLimitWeight > 0){
+        if(totalUnderLimitWeight > 0.01){
             allocation.forEach(item => {
                 if (item.hour >= startHour && item.hour <= endHour && item.volume < limit) {
-                    const patternIndex = item.hour - startHour;
-                    if(patternIndex < pattern.length) {
-                      const weight = pattern[patternIndex] || 0;
-                      item.volume += excessVolume * (weight / totalUnderLimitWeight);
-                    }
+                    const room = limit - item.volume;
+                    const share = excessVolume * (room / totalUnderLimitWeight);
+                    item.volume += share;
                 }
             });
         } else {
@@ -112,6 +110,16 @@ export function allocateVolume(
     const maxAllocated = Math.max(...allocation.map(a => a.volume));
     if (maxAllocated > limit + 0.001) { // Add a small tolerance for float precision
       overflowWarning = "Hourly volume limit exceeded.";
+      // Recalculate excess one last time if warning is set here
+      let finalExcess = 0;
+      allocation.forEach(item => {
+        if(item.volume > limit) {
+          finalExcess += item.volume - limit;
+          item.volume = limit;
+        }
+      });
+      // If there's still excess, it means total volume cannot be allocated.
+      // This case is rare but could happen with rounding.
     }
   }
 
@@ -138,7 +146,7 @@ export function allocateVolume(
         // If all are at the limit, add to the first operating hour and trigger warning
         const firstHourIndex = allocation.findIndex(a => a.hour === startHour);
         if (firstHourIndex !== -1) {
-          allocation[firstHourIndex].volume += difference;
+          allocation[firstHourIndex].volume = parseFloat((allocation[firstHourIndex].volume + difference).toFixed(2));
           overflowWarning = "Hourly volume limit exceeded.";
         }
       }
