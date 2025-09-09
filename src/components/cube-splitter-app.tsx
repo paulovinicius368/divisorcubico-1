@@ -144,7 +144,7 @@ export default function CubeSplitterApp() {
         <Cuboid className="h-10 w-10 text-primary" />
         <div>
           <h1 className="font-headline text-3xl font-bold tracking-tight text-primary md:text-4xl">
-            POÇOS DE CAPTAÇÃO
+            Divisor Cúbico
           </h1>
           <p className="text-muted-foreground">Divisor de Volume Hídrico</p>
         </div>
