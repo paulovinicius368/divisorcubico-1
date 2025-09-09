@@ -27,13 +27,23 @@ export default function SignupPage() {
       await createUserWithEmailAndPassword(auth, email, password);
       router.push('/dashboard');
     } catch (error: any) {
-      let description = 'Ocorreu um erro desconhecido. Tente novamente.';
-      if (error.code === 'auth/email-already-in-use') {
-        description = 'Este endereço de e-mail já está em uso.';
-      } else if (error.code === 'auth/weak-password') {
-        description = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
-      } else if (error.code === 'auth/invalid-email') {
-          description = 'O e-mail fornecido não é válido.';
+      let description = `Ocorreu um erro desconhecido. Código: ${error.code}`;
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          description = 'Este endereço de e-mail já está em uso por outra conta.';
+          break;
+        case 'auth/invalid-email':
+          description = 'O formato do endereço de e-mail não é válido.';
+          break;
+        case 'auth/operation-not-allowed':
+          description = 'O cadastro por e-mail e senha não está habilitado.';
+          break;
+        case 'auth/weak-password':
+          description = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
+          break;
+        default:
+          console.error("Erro no cadastro:", error);
+          break;
       }
       
       toast({
@@ -41,6 +51,7 @@ export default function SignupPage() {
         description: description,
         variant: 'destructive',
       });
+    } finally {
       setIsLoading(false);
     }
   };
