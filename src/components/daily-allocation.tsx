@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { MonthlyData } from "./cube-splitter-app";
+import { Skeleton } from "./ui/skeleton";
 
 const formSchema = z.object({
   hidrometroAnterior: z.coerce
@@ -70,17 +71,18 @@ type DailyAllocationProps = {
     result: AllocateHourlyVolumeOutput,
     well: string,
     hidrometro: number
-  ) => void;
+  ) => Promise<boolean>;
   monthlyData: MonthlyData;
   editKey: string | null;
   onClearEdit: () => void;
+  isLoadingData: boolean;
 };
 
-export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit }: DailyAllocationProps) {
+export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, isLoadingData }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     undefined
   );
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [, setAllocationResult] =
     useState<AllocateHourlyVolumeOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +105,6 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   const isEditing = !!editKey;
 
   useEffect(() => {
-    // This ensures new Date() is only called on the client
     if(!selectedDate) {
       setSelectedDate(new Date());
     }
@@ -111,7 +112,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
 
   useEffect(() => {
-    if (editKey && monthlyData[editKey]) {
+    if (editKey && monthlyData[editKey] && !isLoadingData) {
       const editData = monthlyData[editKey];
       const entryDate = parseISO(editData.date);
       const previousDayDate = subDays(entryDate, 1);
@@ -129,11 +130,11 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         resetForm(well, selectedDate);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editKey, monthlyData]);
+  }, [editKey, monthlyData, isLoadingData]);
 
 
   useEffect(() => {
-    if (isEditing) return;
+    if (isEditing || isLoadingData) return;
 
     if (selectedDate && currentWell) {
         const lastEntryForWell = Object.values(monthlyData)
@@ -145,7 +146,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     } else {
         setValue("hidrometroAnterior", 0);
     }
-  }, [selectedDate, currentWell, monthlyData, setValue, isEditing]);
+  }, [selectedDate, currentWell, monthlyData, setValue, isEditing, isLoadingData]);
 
 
   useEffect(() => {
@@ -171,7 +172,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   };
 
 
-  const handleSaveAndAdvance = (
+  const handleSaveAndAdvance = async (
     result: AllocateHourlyVolumeOutput,
     volume: number
   ) => {
@@ -180,7 +181,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       const currentWellValue = getValues("well");
       const currentHidrometroAtual = getValues("hidrometroAtual");
 
-      onSave(
+      const success = await onSave(
         dateString,
         volume,
         result,
@@ -188,6 +189,8 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         currentHidrometroAtual
       );
       
+      if (!success) return;
+
       setAllocationResult(null);
 
       if (isEditing) {
@@ -209,7 +212,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+    setIsSubmitting(true);
     setAllocationResult(null);
     setError(null);
 
@@ -218,8 +221,8 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       : 0;
 
     if (calculatedVolume <= 0 && values.hidrometroAnterior > 0) {
-      handleSaveAndAdvance({ allocation: [] }, calculatedVolume);
-      setIsLoading(false);
+      await handleSaveAndAdvance({ allocation: [] }, calculatedVolume);
+      setIsSubmitting(false);
       return;
     }
 
@@ -229,7 +232,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         well: values.well,
       });
       setAllocationResult(result);
-      handleSaveAndAdvance(result, calculatedVolume);
+      await handleSaveAndAdvance(result, calculatedVolume);
     } catch (e: any) {
       if (e.message && e.message.includes('503')) {
         setError("O serviço de alocação está sobrecarregado. Por favor, tente novamente em alguns instantes.");
@@ -238,7 +241,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       }
       console.error(e);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }
 
@@ -247,6 +250,40 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   };
 
   const editDate = isEditing && editKey ? monthlyData[editKey]?.date : null;
+
+  if (isLoadingData) {
+    return (
+       <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
+         <Card>
+           <CardHeader>
+              <Skeleton className="h-8 w-2/3" />
+              <Skeleton className="h-4 w-full" />
+           </CardHeader>
+           <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+               <div className="space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+               <div className="space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+           </CardContent>
+           <CardFooter>
+              <Skeleton className="h-10 w-full" />
+           </CardFooter>
+         </Card>
+       </div>
+    )
+  }
 
   return (
     <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
@@ -403,8 +440,8 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
               {error && <p className="text-destructive text-sm">{error}</p>}
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? (
+              <Button type="submit" disabled={isSubmitting} className="w-full">
+                {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Salvando...

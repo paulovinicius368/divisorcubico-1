@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Cuboid } from "@/components/icons";
 import DailyAllocation from "@/components/daily-allocation";
 import MonthlyReport from "@/components/monthly-report";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "./ui/skeleton";
 
 export type MonthlyData = Record<
   string, // Unique key, e.g., "YYYY-MM-DD-WELLNAME"
@@ -22,11 +26,38 @@ export type MonthlyData = Record<
 
 export default function CubeSplitterApp() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("daily");
   const [editKey, setEditKey] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleSaveDay = (
+  const fetchAllocations = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const q = query(collection(db, "allocations"), orderBy("date", "asc"));
+      const querySnapshot = await getDocs(q);
+      const data: MonthlyData = {};
+      querySnapshot.forEach((doc) => {
+        data[doc.id] = doc.data() as MonthlyData[string];
+      });
+      setMonthlyData(data);
+    } catch (error) {
+      console.error("Error fetching allocations: ", error);
+      toast({
+        title: "Erro ao buscar dados",
+        description: "Não foi possível carregar os lançamentos do banco de dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchAllocations();
+  }, [fetchAllocations]);
+
+  const handleSaveDay = async (
     date: string,
     total: number,
     result: AllocateHourlyVolumeOutput,
@@ -34,35 +65,78 @@ export default function CubeSplitterApp() {
     hidrometro: number
   ) => {
     const key = `${date}-${well}`;
-    setMonthlyData((prev) => ({
-      ...prev,
-      [key]: { total, allocation: result.allocation, well, hidrometro, date, overflowWarning: result.overflowWarning },
-    }));
-    toast({
-      title: "Salvo com sucesso!",
-      description: `Os dados de ${well} para ${date} foram adicionados ao relatório.`,
-    });
-    setEditKey(null);
+    try {
+      const newEntry = { 
+        total, 
+        allocation: result.allocation, 
+        well, 
+        hidrometro, 
+        date, 
+        overflowWarning: result.overflowWarning 
+      };
+      await setDoc(doc(db, "allocations", key), newEntry);
+      setMonthlyData((prev) => ({
+        ...prev,
+        [key]: newEntry,
+      }));
+      toast({
+        title: "Salvo com sucesso!",
+        description: `Os dados de ${well} para ${date} foram salvos no banco de dados.`,
+      });
+      setEditKey(null);
+      return true;
+    } catch (error) {
+      console.error("Error saving allocation: ", error);
+       toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar os dados. Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
   };
 
-  const handleDeleteDay = (key: string) => {
+  const handleDeleteDay = async (key: string) => {
     const entryDate = monthlyData[key]?.date;
-    setMonthlyData(prev => {
-      const newData = { ...prev };
-      delete newData[key];
-      return newData;
-    });
-    toast({
-      title: "Excluído com sucesso!",
-      description: `Os dados de ${entryDate} foram removidos.`,
-      variant: "destructive"
-    });
+    try {
+      await deleteDoc(doc(db, "allocations", key));
+      setMonthlyData(prev => {
+        const newData = { ...prev };
+        delete newData[key];
+        return newData;
+      });
+      toast({
+        title: "Excluído com sucesso!",
+        description: `Os dados de ${entryDate} foram removidos.`,
+        variant: "destructive"
+      });
+    } catch (error) {
+      console.error("Error deleting allocation: ", error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível remover o lançamento.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditDay = (key: string) => {
     setEditKey(key);
     setActiveTab("daily");
   };
+  
+  const renderLoadingSkeleton = () => (
+    <div className="pt-6">
+        <div className="space-y-4 max-w-lg mx-auto">
+          <Skeleton className="h-10 w-1/3" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+    </div>
+  );
+
 
   return (
     <div className="container mx-auto p-4 sm:p-6 md:p-8">
@@ -87,14 +161,17 @@ export default function CubeSplitterApp() {
             monthlyData={monthlyData} 
             editKey={editKey}
             onClearEdit={() => setEditKey(null)}
+            isLoadingData={isLoading}
           />
         </TabsContent>
         <TabsContent value="monthly" className="pt-6">
-          <MonthlyReport 
-            data={monthlyData} 
-            onEdit={handleEditDay}
-            onDelete={handleDeleteDay}
-          />
+          {isLoading ? renderLoadingSkeleton() : (
+            <MonthlyReport 
+              data={monthlyData} 
+              onEdit={handleEditDay}
+              onDelete={handleDeleteDay}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
