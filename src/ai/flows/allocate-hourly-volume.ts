@@ -38,7 +38,7 @@ const AllocateHourlyVolumeOutputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'A warning message if the volume for the MAAG well exceeds 19 cubic meters per hour.'
+      'A warning message if the hourly volume for a well exceeds its specific limit.'
     ),
 });
 
@@ -65,10 +65,10 @@ Well: {{{well}}}
 
 The volume for each hour should vary throughout the 24 hours (0-23). The sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'. The volume for each hour must not be the same.
 
-Follow these specific operating hours:
-- If the well is "MAAG", distribute the volume only between the hours of 6 and 18 (inclusive). The volume for any single hour must not exceed 19 cubic meters. If the totalDailyVolume is too high to be allocated without exceeding 19 m³/h, you must still perform the allocation to the best of your ability to meet the totalDailyVolume, and you MUST set the 'overflowWarning' field to "Volume allocation for MAAG exceeded the 19 m³/h limit." Otherwise, 'overflowWarning' should be omitted. All other hours outside 6-18 must have a volume of 0.
-- If the well is "PECUÁRIA", distribute the volume only between the hours of 6 and 21 (inclusive). All other hours must have a volume of 0.
-- For any other well, use typical water usage patterns to determine the operating hours, leaving non-operating hours with a volume of 0.
+Follow these specific operating hours and limits:
+- If the well is "MAAG", distribute the volume only between the hours of 6 and 18 (inclusive). The volume for any single hour must not exceed 19 cubic meters. If the totalDailyVolume is too high to be allocated without exceeding 19 m³/h, you must still perform the allocation to the best of your ability to meet the totalDailyVolume, and you MUST set the 'overflowWarning' field to "Hourly volume limit exceeded." Otherwise, 'overflowWarning' should be omitted. All other hours outside 6-18 must have a volume of 0.
+- If the well is "PECUÁRIA", distribute the volume only between the hours of 6 and 21 (inclusive). The volume for any single hour must not exceed 10 cubic meters. If the totalDailyVolume is too high to be allocated without exceeding 10 m³/h, you must still perform the allocation to the best of your ability to meet the totalDailyVolume, and you MUST set the 'overflowWarning' field to "Hourly volume limit exceeded." Otherwise, 'overflowWarning' should be omitted. All other hours outside 6-21 must have a volume of 0.
+- For any other well (like "TCHE"), use typical water usage patterns to determine the operating hours, leaving non-operating hours with a volume of 0. There are no volume limits for these other wells.
 `,
   config: {
     safetySettings: [

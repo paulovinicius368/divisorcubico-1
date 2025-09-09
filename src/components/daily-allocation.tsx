@@ -124,12 +124,12 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
           hidrometroAnterior: previousDayData?.hidrometro ?? 0,
       });
       setSelectedDate(entryDate);
-    } else {
+    } else if (!isEditing) {
         const well = getValues('well');
         resetForm(well, selectedDate);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editKey, monthlyData, reset]);
+  }, [editKey, monthlyData]);
 
 
   useEffect(() => {
@@ -167,6 +167,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     });
     setTotalVolume(0);
     setSelectedDate(date || new Date());
+    onClearEdit();
   };
 
 
@@ -190,7 +191,6 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       setAllocationResult(null);
 
       if (isEditing) {
-        onClearEdit();
         resetForm(getValues('well'));
       } else {
         const nextDay = new Date(selectedDate);
@@ -243,8 +243,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   }
 
   const handleClearEdit = () => {
-    onClearEdit();
-    resetForm(getValues('well'));
+    resetForm(getValues('well'), new Date());
   };
 
   const editDate = isEditing && editKey ? monthlyData[editKey]?.date : null;

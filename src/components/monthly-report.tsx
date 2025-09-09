@@ -185,7 +185,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
               item.volume.toFixed(2),
               runningHidrometro.toFixed(2),
               isFirstRowOfDay ? Number(total).toFixed(2) : "",
-              isFirstRowOfDay && overflowWarning ? "Volume excedido" : ""
+              isFirstRowOfDay && overflowWarning ? "Limite de vazão excedido" : ""
             ];
           });
         });
@@ -256,17 +256,20 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
 
     let runningHidrometro = prevDayHidrometro;
 
-    return Array.from({ length: 24 }, (_, i) => {
+    const fullDayAllocation = Array.from({ length: 24 }, (_, i) => {
       const hourData = allocation.find(a => a.hour === i);
-      const volume = hourData ? hourData.volume : 0;
-      if (i > 0) { // Start summing from the first hour
-         const prevHourData = allocation.find(a => a.hour === i-1);
-         runningHidrometro += prevHourData ? prevHourData.volume : 0;
-      }
       return {
         hour: i,
-        volume: volume,
-        hidrometroCalculado: i === 0 ? prevDayHidrometro : runningHidrometro,
+        volume: hourData ? hourData.volume : 0,
+      };
+    });
+
+    return fullDayAllocation.map(item => {
+      runningHidrometro += item.volume;
+      return {
+        hour: item.hour,
+        volume: item.volume,
+        hidrometroCalculado: runningHidrometro,
       };
     });
   };
@@ -456,12 +459,12 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                                 <TableCell>{`${hour}:00 - ${
                                   hour + 1
                                 }:00`}</TableCell>
-                                <TableCell className={cn(volume > 19 && well === 'MAAG' && "text-red-600 font-bold")}>{volume.toFixed(2)}</TableCell>
+                                <TableCell className={cn(((well === 'MAAG' && volume > 19) || (well === 'PECUÁRIA' && volume > 10)) && "text-red-600 font-bold")}>{volume.toFixed(2)}</TableCell>
                                 <TableCell className="font-mono">
                                   {hidrometroCalculado.toFixed(2)}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  {volume > 19 && well === 'MAAG' && <span className="text-red-600">Volume excedido</span>}
+                                  {((well === 'MAAG' && volume > 19) || (well === 'PECUÁRIA' && volume > 10)) && <span className="text-red-600">Volume excedido</span>}
                                 </TableCell>
                               </TableRow>
                             ))
