@@ -5,21 +5,21 @@ import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volu
 const wellConfigs = {
   "MAAG": {
     startHour: 6,
-    endHour: 18,
+    endHour: 17, // Corrected: Operates from 6:00 up to (but not including) 18:00
     limit: 19,
     // A more varied bell-curve pattern for volume distribution
-    pattern: [0.4, 0.6, 0.8, 0.95, 1.0, 0.95, 0.9, 0.85, 0.8, 0.7, 0.6, 0.5, 0.4],
+    pattern: [0.4, 0.6, 0.8, 0.95, 1.0, 0.95, 0.9, 0.85, 0.8, 0.7, 0.6, 0.5],
   },
   "PECUÁRIA": {
     startHour: 6,
-    endHour: 21,
+    endHour: 20, // Corrected: Operates from 6:00 up to (but not including) 21:00
     limit: 10,
     // A longer, more varied pattern for a longer operational window
-    pattern: [0.3, 0.45, 0.6, 0.75, 0.9, 1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.45, 0.4],
+    pattern: [0.3, 0.45, 0.6, 0.75, 0.9, 1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.45],
   },
   "TCHE": {
     startHour: 7,
-    endHour: 19,
+    endHour: 18, // Operates from 7:00 up to 19:00
     limit: Infinity, // No limit
     // A more pronounced bell curve for typical usage
     pattern: [0.4, 0.65, 0.85, 1.0, 1.0, 1.0, 1.0, 0.9, 0.75, 0.6, 0.5, 0.4],
