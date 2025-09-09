@@ -134,7 +134,7 @@ export default function SignupPage() {
   };
 
   const ValidationItem = ({ isValid, text }: { isValid: boolean, text: string }) => (
-      <li className={cn("flex items-center gap-2 text-sm", isValid ? "text-green-600" : "text-muted-foreground")}>
+      <li className={cn("flex items-center gap-2 text-sm transition-all", isValid ? "text-green-600 line-through" : "text-muted-foreground")}>
           {isValid ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
           {text}
       </li>
