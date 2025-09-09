@@ -130,9 +130,9 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
 
   const handleExport = (formatType: "csv" | "xlsx" | "pdf") => {
     if (typeof window === "undefined") return;
-
+  
     const dataToExport = filteredKeys.length > 0 ? filteredKeys : sortedKeys;
-
+  
     const dataByWell: Record<string, string[]> = {};
     for (const key of dataToExport) {
       const { well } = data[key];
@@ -141,7 +141,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
       }
       dataByWell[well].push(key);
     }
-
+  
     for (const well in dataByWell) {
       const headers = [
         "Data",
@@ -151,59 +151,46 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
         "Hidrômetro",
         "Diferença Diária (m³)",
       ];
-
+  
       const wellSortedKeys = dataByWell[well].sort(
         (a, b) => new Date(data[a].date).getTime() - new Date(data[b].date).getTime()
       );
       
       const rows = wellSortedKeys
-        .flatMap((key) => {
+        .flatMap((key, dayIndex) => {
           const { allocation, total, hidrometro, date } = data[key];
-
-          const filteredAllocation = allocation.filter(item => item.volume > 0);
-
-          if (filteredAllocation.length === 0) {
-            return [[
-                format(new Date(date + "T00:00:00"), "dd/MM/yyyy"),
-                well,
-                "N/A",
-                "0.00",
-                Number(hidrometro).toFixed(2),
-                Number(total).toFixed(2),
-            ]];
-          }
           
-          let runningHidrometro = hidrometro - total;
-          let lastVolume = -1;
+          const prevDayKey = dayIndex > 0 ? wellSortedKeys[dayIndex - 1] : null;
+          const prevDayHidrometro = prevDayKey ? data[prevDayKey].hidrometro : hidrometro - total;
 
-          return filteredAllocation
-            .map(({ hour, volume }, index) => {
-              const isFirstRowOfDay = index === 0;
-
-              // This logic calculates the running hydrometer reading
-              if (lastVolume === -1) { // First item
-                  runningHidrometro += volume;
-              } else if (volume !== lastVolume) {
-                  runningHidrometro += volume;
-              }
-              
-              const rowData = [
-                isFirstRowOfDay ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
-                well,
-                `${hour}:00`,
-                volume.toFixed(2),
-                runningHidrometro.toFixed(2),
-                isFirstRowOfDay ? Number(total).toFixed(2) : "",
-              ];
-              
-              lastVolume = volume;
-              return rowData;
-            });
+          let runningHidrometro = prevDayHidrometro;
+          
+          const fullDayAllocation = Array.from({ length: 24 }, (_, i) => {
+            const hourData = allocation.find(a => a.hour === i);
+            return {
+              hour: i,
+              volume: hourData ? hourData.volume : 0,
+            };
+          });
+          
+          return fullDayAllocation.map((item, index) => {
+            const isFirstRowOfDay = index === 0;
+            runningHidrometro += item.volume;
+            
+            return [
+              isFirstRowOfDay ? format(new Date(date + "T00:00:00"), "dd/MM/yyyy") : "",
+              isFirstRowOfDay ? well : "",
+              `${item.hour}:00`,
+              item.volume.toFixed(2),
+              runningHidrometro.toFixed(2),
+              isFirstRowOfDay ? Number(total).toFixed(2) : "",
+            ];
+          });
         });
-
+  
       const today = new Date().toISOString().slice(0, 10);
       const filename = `relatorio_${well}_${today}`;
-
+  
       if (formatType === "csv") {
         const csvContent = [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -255,28 +242,22 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
 
   const getDetailedAllocation = (key: string) => {
     const { allocation, total, hidrometro } = data[key];
-    const detailed = [];
-    
-    const filteredAllocation = allocation.filter(item => item.volume > 0);
-    
-    if (filteredAllocation.length === 0) {
-        return [];
-    }
-    
-    let runningHidrometro = hidrometro - total;
-    let lastVolume = -1;
+    const keyIndex = sortedKeys.findIndex(k => k === key);
+    const prevDayKey = keyIndex > 0 ? sortedKeys[keyIndex - 1] : null;
+    const prevDayHidrometro = prevDayKey ? data[prevDayKey].hidrometro : hidrometro - total;
 
-    for (const item of filteredAllocation) {
-      if (lastVolume === -1) { // First item
-          runningHidrometro += item.volume;
-      } else if (item.volume !== lastVolume) {
-          runningHidrometro += item.volume;
-      }
-      detailed.push({ ...item, hidrometroCalculado: runningHidrometro });
-      lastVolume = item.volume;
-    }
-    
-    return detailed;
+    let runningHidrometro = prevDayHidrometro;
+
+    return Array.from({ length: 24 }, (_, i) => {
+      const hourData = allocation.find(a => a.hour === i);
+      const volume = hourData ? hourData.volume : 0;
+      runningHidrometro += volume;
+      return {
+        hour: i,
+        volume: volume,
+        hidrometroCalculado: runningHidrometro,
+      };
+    });
   };
 
   const deleteCandidateDate = deleteCandidate ? data[deleteCandidate]?.date : null;
