@@ -21,12 +21,42 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const validatePassword = (password: string) => {
+    const passwordRegex = new RegExp(
+      "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*]).{8,}$"
+    );
+    return passwordRegex.test(password);
+  };
+
+  const formatName = (name: string) => {
+    return name
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validatePassword(password)) {
+      toast({
+        title: 'Senha Inválida',
+        description: 'A senha deve ter no mínimo 8 caracteres, incluindo uma letra maiúscula, uma minúscula, um número e um caractere especial (!@#$%^&*).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
+
+    const formattedName = formatName(name);
+    const formattedEmail = email.toLowerCase();
+
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName: name });
+      const userCredential = await createUserWithEmailAndPassword(auth, formattedEmail, password);
+      await updateProfile(userCredential.user, { displayName: formattedName });
       
       toast({
         title: 'Cadastro realizado com sucesso!',
@@ -46,7 +76,7 @@ export default function SignupPage() {
           description = 'O cadastro por e-mail e senha não está habilitado.';
           break;
         case 'auth/weak-password':
-          description = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
+          description = 'A senha é muito fraca. O Firebase exige pelo menos 6 caracteres.';
           break;
         case 'auth/network-request-failed':
           description = 'Falha na rede. Verifique sua conexão com a internet e se o domínio está autorizado no Firebase.';
@@ -108,7 +138,7 @@ export default function SignupPage() {
                 id="password"
                 type="password"
                 required
-                placeholder='Mínimo de 6 caracteres'
+                placeholder='Mínimo de 8 caracteres'
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
