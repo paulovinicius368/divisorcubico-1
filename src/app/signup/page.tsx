@@ -41,6 +41,9 @@ export default function SignupPage() {
         case 'auth/weak-password':
           description = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
           break;
+        case 'auth/network-request-failed':
+          description = 'Falha na rede. Verifique sua conexão com a internet e se o domínio está autorizado no Firebase.';
+          break;
         default:
           console.error("Erro no cadastro:", error);
           break;
