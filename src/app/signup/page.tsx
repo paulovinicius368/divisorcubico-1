@@ -25,7 +25,11 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      toast({
+        title: 'Cadastro realizado com sucesso!',
+        description: 'Você já pode fazer login com suas credenciais.',
+      });
+      router.push('/login');
     } catch (error: any) {
       let description = `Ocorreu um erro desconhecido. Código: ${error.code}`;
       switch (error.code) {
