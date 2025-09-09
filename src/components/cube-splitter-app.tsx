@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -72,15 +73,20 @@ export default function CubeSplitterApp() {
   ) => {
     const key = `${date}-${well}`;
     try {
-      const newEntry = { 
+      const newEntry: MonthlyData[string] = { 
         total, 
         allocation: result.allocation, 
         well, 
         hidrometro, 
-        date, 
-        overflowWarning: result.overflowWarning 
+        date,
       };
+
+      if (result.overflowWarning) {
+        newEntry.overflowWarning = result.overflowWarning;
+      }
+      
       await setDoc(doc(db, "allocations", key), newEntry);
+
       setMonthlyData((prev) => ({
         ...prev,
         [key]: newEntry,
