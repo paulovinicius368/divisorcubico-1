@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle2, Circle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { Cuboid } from '@/components/icons';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -134,13 +134,14 @@ export default function SignupPage() {
       setIsLoading(false);
     }
   };
-
-  const ValidationItem = ({ isValid, text }: { isValid: boolean, text: string }) => (
-      <li className={cn("flex items-center gap-2 text-sm transition-all", isValid ? "text-green-600 line-through" : "text-muted-foreground")}>
-          {isValid ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-          {text}
-      </li>
-  );
+  
+  const validationCriteria = [
+    { key: 'minLength', text: '8+ caracteres' },
+    { key: 'hasUppercase', text: 'Maiúscula' },
+    { key: 'hasLowercase', text: 'Minúscula' },
+    { key: 'hasNumber', text: 'Número' },
+    { key: 'hasSpecialChar', text: 'Especial' },
+  ];
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -224,13 +225,22 @@ export default function SignupPage() {
                 </Button>
               </div>
             </div>
-            <ul className="grid gap-1 p-2 rounded-md bg-muted/50">
-                <ValidationItem isValid={passwordValidation.minLength} text="Pelo menos 8 caracteres" />
-                <ValidationItem isValid={passwordValidation.hasUppercase} text="Uma letra maiúscula" />
-                <ValidationItem isValid={passwordValidation.hasLowercase} text="Uma letra minúscula" />
-                <ValidationItem isValid={passwordValidation.hasNumber} text="Um número" />
-                <ValidationItem isValid={passwordValidation.hasSpecialChar} text="Um caractere especial (!@#$%^&*)" />
-            </ul>
+             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                <span className="font-medium">A senha deve conter:</span>
+                {validationCriteria.map((item, index) => (
+                    <span
+                        key={item.key}
+                        className={cn(
+                            "transition-all",
+                            passwordValidation[item.key as keyof PasswordValidation]
+                                ? "text-green-600 line-through"
+                                : "text-muted-foreground"
+                        )}
+                    >
+                        {item.text}{index < validationCriteria.length - 1 ? ',' : ''}
+                    </span>
+                ))}
+             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : 'Inscrever-se'}
             </Button>
