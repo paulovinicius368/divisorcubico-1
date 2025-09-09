@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { allocateVolume } from '@/services/allocation-service';
 
 const AllocateHourlyVolumeInputSchema = z.object({
   totalDailyVolume: z
@@ -52,54 +53,14 @@ export async function allocateHourlyVolume(
   return allocateHourlyVolumeFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'allocateHourlyVolumePrompt',
-  input: {schema: AllocateHourlyVolumeInputSchema},
-  output: {schema: AllocateHourlyVolumeOutputSchema},
-  prompt: `You are a resource allocation expert. Given the total daily volume and the selected well, create a JSON object containing an 'allocation' array of 24 objects representing each hour of the day (0-23) and its allocated water volume.
-
-The final response must be a single JSON object. The 'allocation' array must contain 24 objects. Each object must have "hour" (0-23) and "volume" keys. Do not add any extra explanations.
-
-Total Daily Volume: {{{totalDailyVolume}}}
-Well: {{{well}}}
-
-The volume for each hour must vary throughout the 24 hours (0-23). The sum of all 24 hourly volumes (from hour 0 to 23) must exactly equal the 'totalDailyVolume'.
-
-Follow these specific operating hours and limits:
-- If the well is "MAAG", distribute the volume only between the hours of 6 and 18 (inclusive). The volume for any single hour must not exceed 19 cubic meters. Your primary goal is to stay under this limit. Try to balance the distribution across the hours to avoid exceeding it. Only if it's mathematically impossible to allocate the totalDailyVolume without exceeding 19 m³/h in at least one hour, you must perform the allocation to the best of your ability to meet the totalDailyVolume and set the 'overflowWarning' field to "Hourly volume limit exceeded." Otherwise, 'overflowWarning' should be omitted. All other hours outside 6-18 must have a volume of 0.
-- If the well is "PECUÁRIA", distribute the volume only between the hours of 6 and 21 (inclusive). The volume for any single hour must not exceed 10 cubic meters. Your primary goal is to stay under this limit. Try to balance the distribution across the hours to avoid exceeding it. Only if it's mathematically impossible to allocate the totalDailyVolume without exceeding 10 m³/h in at least one hour, you must perform the allocation to the best of your ability to meet the totalDailyVolume and set the 'overflowWarning' field to "Hourly volume limit exceeded." Otherwise, 'overflowWarning' should be omitted. All other hours outside 6-21 must have a volume of 0.
-- For any other well (like "TCHE"), use typical water usage patterns to determine the operating hours, leaving non-operating hours with a volume of 0. There are no volume limits for these other wells.
-`,
-  config: {
-    safetySettings: [
-      {
-        category: 'HARM_CATEGORY_HATE_SPEECH',
-        threshold: 'BLOCK_ONLY_HIGH',
-      },
-      {
-        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_NONE',
-      },
-      {
-        category: 'HARM_CATEGORY_HARASSMENT',
-        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-      },
-      {
-        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_LOW_AND_ABOVE',
-      },
-    ],
-  },
-});
-
 const allocateHourlyVolumeFlow = ai.defineFlow(
   {
     name: 'allocateHourlyVolumeFlow',
     inputSchema: AllocateHourlyVolumeInputSchema,
     outputSchema: AllocateHourlyVolumeOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async ({ totalDailyVolume, well }) => {
+    // Delegate the complex allocation logic to a deterministic TypeScript service.
+    return allocateVolume(totalDailyVolume, well);
   }
 );
