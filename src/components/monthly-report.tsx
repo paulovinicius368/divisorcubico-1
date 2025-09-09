@@ -244,8 +244,14 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
 
   const getDetailedAllocation = (key: string) => {
     const { allocation, total, hidrometro } = data[key];
-    const keyIndex = sortedKeys.findIndex(k => k === key);
-    const prevDayKey = keyIndex > 0 ? sortedKeys[keyIndex - 1] : null;
+    
+    // Find previous day's entry for the same well to get the starting hidrometer
+    const allEntriesForWell = sortedKeys
+      .filter(k => data[k].well === data[key].well)
+      .sort((a,b) => new Date(data[a].date).getTime() - new Date(data[b].date).getTime());
+    
+    const currentIndex = allEntriesForWell.findIndex(k => k === key);
+    const prevDayKey = currentIndex > 0 ? allEntriesForWell[currentIndex-1] : null;
     const prevDayHidrometro = prevDayKey ? data[prevDayKey].hidrometro : hidrometro - total;
 
     let runningHidrometro = prevDayHidrometro;
@@ -253,11 +259,14 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     return Array.from({ length: 24 }, (_, i) => {
       const hourData = allocation.find(a => a.hour === i);
       const volume = hourData ? hourData.volume : 0;
-      runningHidrometro += volume;
+      if (i > 0) { // Start summing from the first hour
+         const prevHourData = allocation.find(a => a.hour === i-1);
+         runningHidrometro += prevHourData ? prevHourData.volume : 0;
+      }
       return {
         hour: i,
         volume: volume,
-        hidrometroCalculado: runningHidrometro,
+        hidrometroCalculado: i === 0 ? prevDayHidrometro : runningHidrometro,
       };
     });
   };
