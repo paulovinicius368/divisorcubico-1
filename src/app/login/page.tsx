@@ -90,10 +90,6 @@ export default function LoginPage() {
               {isLoading ? <Loader2 className="animate-spin" /> : 'Entrar'}
             </Button>
           </form>
-          <Separator className="my-4" />
-          <Button variant="outline" className="w-full" onClick={() => router.push('/signup')}>
-            Inscreva-se
-          </Button>
         </CardContent>
       </Card>
     </div>

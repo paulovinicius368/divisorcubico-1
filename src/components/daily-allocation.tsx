@@ -79,11 +79,9 @@ type DailyAllocationProps = {
   editKey: string | null;
   onClearEdit: () => void;
   isLoadingData: boolean;
-  isAdmin: boolean;
-  isClaimsLoading: boolean;
 };
 
-export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, isLoadingData, isAdmin, isClaimsLoading }: DailyAllocationProps) {
+export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, isLoadingData }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     undefined
   );
@@ -255,9 +253,8 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   };
 
   const editDate = isEditing && editKey ? monthlyData[editKey]?.date : null;
-  const canInteract = isAdmin && !isClaimsLoading;
 
-  if (isLoadingData || isClaimsLoading) {
+  if (isLoadingData) {
     return (
        <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
          <Card>
@@ -303,7 +300,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
               </CardDescription>
             </div>
             {isEditing && (
-              <Button variant="ghost" size="icon" onClick={handleClearEdit} disabled={!canInteract}>
+              <Button variant="ghost" size="icon" onClick={handleClearEdit}>
                 <X className="h-4 w-4" />
               </Button>
             )}
@@ -312,16 +309,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
-               {!canInteract && (
-                <Alert variant="destructive">
-                  <ShieldAlert className="h-4 w-4" />
-                  <AlertTitle>Modo Somente Leitura</AlertTitle>
-                  <AlertDescription>
-                    Você não tem permissão para criar ou editar lançamentos. Contate um administrador.
-                  </AlertDescription>
-                </Alert>
-              )}
-              <fieldset disabled={!canInteract} className="space-y-6">
+              <fieldset className="space-y-6">
                 <FormField
                   control={control}
                   name="well"
@@ -457,7 +445,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
               {error && <p className="text-destructive text-sm">{error}</p>}
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isSubmitting || !canInteract} className="w-full">
+              <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

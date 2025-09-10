@@ -54,14 +54,13 @@ type MonthlyReportProps = {
   data: MonthlyData;
   onEdit: (key: string) => void;
   onDelete: (key: string) => void;
-  isAdmin: boolean;
 };
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-export default function MonthlyReport({ data, onEdit, onDelete, isAdmin }: MonthlyReportProps) {
+export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportProps) {
   const [deleteCandidate, setDeleteCandidate] = useState<string | null>(null);
   const [filterWell, setFilterWell] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string>("");
@@ -434,16 +433,14 @@ export default function MonthlyReport({ data, onEdit, onDelete, isAdmin }: Month
                             </div>
                           </div>
                         </AccordionTrigger>
-                        {isAdmin && (
-                          <div className="flex items-center gap-1 pl-4 pr-4">
-                            <Button variant="ghost" size="icon" onClick={() => onEdit(key)}>
-                              <Pencil className="h-4 w-4 text-blue-500" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(key)}>
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 pl-4 pr-4">
+                          <Button variant="ghost" size="icon" onClick={() => onEdit(key)}>
+                            <Pencil className="h-4 w-4 text-blue-500" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(key)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
                     <AccordionContent>
                       <Table>
