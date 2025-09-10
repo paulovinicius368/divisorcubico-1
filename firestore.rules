@@ -1,11 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read access to any authenticated user
-    // Allow write access (create, update, delete) only to admins
     match /allocations/{allocationId} {
+      // Admin-only write access
+      allow write: if request.auth.token.admin == true;
+      // All authenticated users can read
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.token.admin == true;
     }
   }
 }
