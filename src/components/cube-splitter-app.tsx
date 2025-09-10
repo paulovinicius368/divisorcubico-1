@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { collection, getDocs, doc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore";
+import { useState, useEffect, useCallback }from "react";
+import { collection, onSnapshot, doc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
 import { db, auth } from "@/lib/firebase";
@@ -38,31 +38,30 @@ export default function CubeSplitterApp() {
   const router = useRouter();
 
 
-  const fetchAllocations = useCallback(async () => {
+  useEffect(() => {
     setIsLoading(true);
-    try {
-      const q = query(collection(db, "allocations"), orderBy("date", "asc"));
-      const querySnapshot = await getDocs(q);
+    const q = query(collection(db, "allocations"), orderBy("date", "asc"));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const data: MonthlyData = {};
       querySnapshot.forEach((doc) => {
         data[doc.id] = doc.data() as MonthlyData[string];
       });
       setMonthlyData(data);
-    } catch (error) {
+      setIsLoading(false);
+    }, (error) => {
       console.error("Error fetching allocations: ", error);
       toast({
         title: "Erro ao buscar dados",
-        description: "Não foi possível carregar os lançamentos do banco de dados.",
+        description: "Não foi possível carregar os lançamentos. O app pode funcionar em modo offline se os dados já foram carregados.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
-    }
+    });
+
+    return () => unsubscribe(); // Cleanup subscription on component unmount
   }, [toast]);
 
-  useEffect(() => {
-    fetchAllocations();
-  }, [fetchAllocations]);
 
   const handleSaveDay = async (
     date: string,
@@ -87,13 +86,9 @@ export default function CubeSplitterApp() {
       
       await setDoc(doc(db, "allocations", key), newEntry, { merge: true });
 
-      setMonthlyData((prev) => ({
-        ...prev,
-        [key]: newEntry,
-      }));
       toast({
         title: "Salvo com sucesso!",
-        description: `Os dados de ${well} para ${date} foram salvos no banco de dados.`,
+        description: `Os dados de ${well} para ${date} foram salvos.`,
       });
       setEditKey(null);
       return true;
@@ -112,11 +107,6 @@ export default function CubeSplitterApp() {
     const entryDate = monthlyData[key]?.date;
     try {
       await deleteDoc(doc(db, "allocations", key));
-      setMonthlyData(prev => {
-        const newData = { ...prev };
-        delete newData[key];
-        return newData;
-      });
       toast({
         title: "Excluído com sucesso!",
         description: `Os dados de ${entryDate} foram removidos.`,
