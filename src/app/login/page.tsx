@@ -45,7 +45,7 @@ export default function LoginPage() {
            <div className="flex items-center justify-center gap-3 mb-2">
             <Cuboid className="h-10 w-10 text-primary" />
             <div>
-              <CardTitle className="text-2xl">Divisor Cúbico</CardTitle>
+              <CardTitle className="text-2xl">DivisorCubico</CardTitle>
               <CardDescription>Acesse sua conta</CardDescription>
             </div>
           </div>
