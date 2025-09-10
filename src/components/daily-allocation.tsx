@@ -11,6 +11,7 @@ import {
   Loader2,
   Save,
   X,
+  ShieldAlert,
 } from "lucide-react";
 
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
@@ -45,6 +46,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { MonthlyData } from "./cube-splitter-app";
 import { Skeleton } from "./ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+
 
 const formSchema = z.object({
   hidrometroAnterior: z.coerce
@@ -76,9 +79,11 @@ type DailyAllocationProps = {
   editKey: string | null;
   onClearEdit: () => void;
   isLoadingData: boolean;
+  isAdmin: boolean;
+  isClaimsLoading: boolean;
 };
 
-export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, isLoadingData }: DailyAllocationProps) {
+export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, isLoadingData, isAdmin, isClaimsLoading }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     undefined
   );
@@ -250,8 +255,9 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   };
 
   const editDate = isEditing && editKey ? monthlyData[editKey]?.date : null;
+  const canInteract = isAdmin && !isClaimsLoading;
 
-  if (isLoadingData) {
+  if (isLoadingData || isClaimsLoading) {
     return (
        <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
          <Card>
@@ -297,7 +303,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
               </CardDescription>
             </div>
             {isEditing && (
-              <Button variant="ghost" size="icon" onClick={handleClearEdit}>
+              <Button variant="ghost" size="icon" onClick={handleClearEdit} disabled={!canInteract}>
                 <X className="h-4 w-4" />
               </Button>
             )}
@@ -306,141 +312,152 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
-              <FormField
-                control={control}
-                name="well"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Poços de Captação</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        if (!isEditing) {
-                            field.onChange(value);
-                        }
-                      }}
-                      value={field.value}
-                      disabled={isEditing}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um poço" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="MAAG">MAAG</SelectItem>
-                        <SelectItem value="PECUÁRIA">PECUÁRIA</SelectItem>
-                        <SelectItem value="TCHE">TCHE</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               {!canInteract && (
+                <Alert variant="destructive">
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertTitle>Modo Somente Leitura</AlertTitle>
+                  <AlertDescription>
+                    Você não tem permissão para criar ou editar lançamentos. Contate um administrador.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <fieldset disabled={!canInteract} className="space-y-6">
+                <FormField
+                  control={control}
+                  name="well"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Poços de Captação</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          if (!isEditing) {
+                              field.onChange(value);
+                          }
+                        }}
+                        value={field.value}
+                        disabled={isEditing}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um poço" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="MAAG">MAAG</SelectItem>
+                          <SelectItem value="PECUÁRIA">PECUÁRIA</SelectItem>
+                          <SelectItem value="TCHE">TCHE</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="space-y-2">
-                <FormLabel>Data da Alocação</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                      disabled={isEditing}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? (
-                        format(selectedDate, "PPP", { locale: ptBR })
-                      ) : (
-                        <span>Escolha uma data</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => {
-                        if (!isEditing && date) setSelectedDate(startOfDay(date));
-                      }}
-                      initialFocus
-                      locale={ptBR}
-                      disabled={(date) => {
-                        if (isEditing) return true;
-                        const dateString = format(date, "yyyy-MM-dd");
-                        const well = getValues("well");
-                        if (!well) return false;
-                        const key = `${dateString}-${well}`;
-                        return !!monthlyData[key];
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <FormField
-                control={control}
-                name="hidrometroAnterior"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hidrômetro Anterior</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        placeholder="Leitura anterior"
-                        readOnly
-                        disabled
-                        {...field}
-                        className="cursor-default bg-muted/50"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={control}
-                name="hidrometroAtual"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hidrômetro Atual</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="any"
-                        placeholder="Leitura atual"
-                        {...field}
-                        onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(value === '' ? '' : Number(value));
+                <div className="space-y-2">
+                  <FormLabel>Data da Alocação</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                        disabled={isEditing}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? (
+                          format(selectedDate, "PPP", { locale: ptBR })
+                        ) : (
+                          <span>Escolha uma data</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          if (!isEditing && date) setSelectedDate(startOfDay(date));
+                        }}
+                        initialFocus
+                        locale={ptBR}
+                        disabled={(date) => {
+                          if (isEditing) return true;
+                          const dateString = format(date, "yyyy-MM-dd");
+                          const well = getValues("well");
+                          if (!well) return false;
+                          const key = `${dateString}-${well}`;
+                          return !!monthlyData[key];
                         }}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              <FormItem>
-                <FormLabel>Volume Diário Total (m³)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    readOnly
-                    disabled
-                    value={totalVolume.toFixed(2)}
-                    className="cursor-default bg-muted/50 font-bold"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+                <FormField
+                  control={control}
+                  name="hidrometroAnterior"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hidrômetro Anterior</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder="Leitura anterior"
+                          readOnly
+                          disabled
+                          {...field}
+                          className="cursor-default bg-muted/50"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={control}
+                  name="hidrometroAtual"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hidrômetro Atual</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder="Leitura atual"
+                          {...field}
+                          onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === '' ? '' : Number(value));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormItem>
+                  <FormLabel>Volume Diário Total (m³)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      readOnly
+                      disabled
+                      value={totalVolume.toFixed(2)}
+                      className="cursor-default bg-muted/50 font-bold"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              </fieldset>
               {error && <p className="text-destructive text-sm">{error}</p>}
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isSubmitting} className="w-full">
+              <Button type="submit" disabled={isSubmitting || !canInteract} className="w-full">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

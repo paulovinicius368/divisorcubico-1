@@ -28,7 +28,12 @@ export type MonthlyData = Record<
   }
 >;
 
-export default function CubeSplitterApp() {
+type CubeSplitterAppProps = {
+  isAdmin: boolean;
+  isClaimsLoading: boolean;
+};
+
+export default function CubeSplitterApp({ isAdmin, isClaimsLoading }: CubeSplitterAppProps) {
   const [monthlyData, setMonthlyData] = useState<MonthlyData>({});
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("daily");
@@ -71,6 +76,14 @@ export default function CubeSplitterApp() {
     well: string,
     hidrometro: number
   ) => {
+    if (!isAdmin) {
+      toast({
+        title: "Acesso Negado",
+        description: "Você não tem permissão para salvar dados.",
+        variant: "destructive",
+      });
+      return false;
+    }
     const key = `${date}-${well}`;
     try {
       const newEntry: MonthlyData[string] = { 
@@ -85,7 +98,7 @@ export default function CubeSplitterApp() {
         newEntry.overflowWarning = result.overflowWarning;
       }
       
-      await setDoc(doc(db, "allocations", key), newEntry);
+      await setDoc(doc(db, "allocations", key), newEntry, { merge: true });
 
       setMonthlyData((prev) => ({
         ...prev,
@@ -101,7 +114,7 @@ export default function CubeSplitterApp() {
       console.error("Error saving allocation: ", error);
        toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar os dados. Tente novamente.",
+        description: "Não foi possível salvar os dados. Verifique suas permissões e tente novamente.",
         variant: "destructive",
       });
       return false;
@@ -109,6 +122,14 @@ export default function CubeSplitterApp() {
   };
 
   const handleDeleteDay = async (key: string) => {
+     if (!isAdmin) {
+      toast({
+        title: "Acesso Negado",
+        description: "Você não tem permissão para excluir dados.",
+        variant: "destructive",
+      });
+      return;
+    }
     const entryDate = monthlyData[key]?.date;
     try {
       await deleteDoc(doc(db, "allocations", key));
@@ -133,6 +154,14 @@ export default function CubeSplitterApp() {
   };
 
   const handleEditDay = (key: string) => {
+    if (!isAdmin) {
+       toast({
+        title: "Acesso Negado",
+        description: "Você não tem permissão para editar dados.",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditKey(key);
     setActiveTab("daily");
   };
@@ -171,7 +200,7 @@ export default function CubeSplitterApp() {
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <div className="text-right flex-grow">
               <p className="text-sm font-medium">Olá, {user.displayName || user.email}</p>
-              <p className="text-xs text-muted-foreground">Bem-vindo(a) de volta!</p>
+              <p className="text-xs text-muted-foreground">{isAdmin ? 'Administrador' : 'Usuário'}</p>
             </div>
             <Button variant="outline" size="icon" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
@@ -193,6 +222,8 @@ export default function CubeSplitterApp() {
             editKey={editKey}
             onClearEdit={() => setEditKey(null)}
             isLoadingData={isLoading}
+            isAdmin={isAdmin}
+            isClaimsLoading={isClaimsLoading}
           />
         </TabsContent>
         <TabsContent value="monthly" className="pt-6">
@@ -201,6 +232,7 @@ export default function CubeSplitterApp() {
               data={monthlyData} 
               onEdit={handleEditDay}
               onDelete={handleDeleteDay}
+              isAdmin={isAdmin}
             />
           )}
         </TabsContent>
