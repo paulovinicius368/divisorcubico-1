@@ -102,7 +102,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     },
   });
 
-  const { watch, setValue, getValues, reset, control } = form;
+  const { watch, setValue, getValues, reset, control, trigger } = form;
   const hidrometroAtual = watch("hidrometroAtual");
   const hidrometroAnterior = watch("hidrometroAnterior");
   const currentWell = watch("well");
@@ -140,7 +140,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         resetForm(well, selectedDate);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editKey, monthlyData, reset]);
+  }, [editKey, monthlyData]);
 
 
   useEffect(() => {
@@ -356,7 +356,6 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                           "w-full justify-start text-left font-normal",
                           !selectedDate && "text-muted-foreground"
                         )}
-                        disabled={isEditing}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {selectedDate ? (
@@ -376,12 +375,11 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                         initialFocus
                         locale={ptBR}
                         disabled={(date) => {
-                          if (isEditing) return false;
                           const dateString = format(date, "yyyy-MM-dd");
                           const well = getValues("well");
                           if (!well) return false;
                           const key = `${dateString}-${well}`;
-                          return !!monthlyData[key];
+                          return !!monthlyData[key] && !isEditing;
                         }}
                       />
                     </PopoverContent>
@@ -470,5 +468,3 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     </div>
   );
 }
-
-    

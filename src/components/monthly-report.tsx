@@ -122,7 +122,7 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: 
       filterOptions: {
         years: Array.from(years).sort((a,b) => Number(b) - Number(a)),
         months: Array.from(months).sort((a,b) => Number(a) - Number(b)),
-        wells: Array.from(wells).sort(),
+        wells: Array.from(wells).filter(Boolean).sort(),
       },
       filteredKeys: fKeys,
     };
@@ -279,7 +279,7 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: 
   };
 
   const confirmBulkDelete = () => {
-    onBulkDelete(bulkDeleteCandidate);
+    onBulkDelete(Array.from(selectedKeys));
     setBulkDeleteCandidate([]);
     setSelectedKeys(new Set());
   }
@@ -586,5 +586,3 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: 
     </>
   );
 }
-
-    
