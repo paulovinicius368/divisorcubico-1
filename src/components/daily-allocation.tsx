@@ -117,7 +117,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
 
   useEffect(() => {
-    if (editKey && monthlyData[editKey] && !isLoadingData) {
+    if (editKey && monthlyData[editKey]) {
       const editData = monthlyData[editKey];
       const entryDate = parseISO(editData.date);
       
@@ -127,20 +127,20 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       
       const previousDayData = allEntriesForWell[0];
       
-      reset({
+      const defaultValues = {
           well: editData.well,
           hidrometroAtual: editData.hidrometro,
           hidrometroAnterior: previousDayData?.hidrometro ?? 0,
-      });
-      // Explicitly set the value for the Select to ensure it updates.
-      setValue('well', editData.well, { shouldValidate: true });
+      };
+
+      reset(defaultValues);
       setSelectedDate(entryDate);
     } else if (!isEditing) {
         const well = getValues('well');
         resetForm(well, selectedDate);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editKey, monthlyData, isLoadingData, reset, setValue]);
+  }, [editKey, monthlyData, reset]);
 
 
   useEffect(() => {
