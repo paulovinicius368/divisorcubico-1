@@ -91,10 +91,13 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: 
 
     sortedKeys.forEach(key => {
       const item = data[key];
+      if (!item) return;
       const itemDate = parseISO(item.date);
       years.add(getYear(itemDate).toString());
       months.add((getMonth(itemDate) + 1).toString().padStart(2, '0'));
-      wells.add(item.well);
+      if (item.well) {
+        wells.add(item.well);
+      }
     });
     
     const fKeys = sortedKeys.filter(key => {
