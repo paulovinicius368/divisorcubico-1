@@ -132,14 +132,15 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
           hidrometroAtual: editData.hidrometro,
           hidrometroAnterior: previousDayData?.hidrometro ?? 0,
       });
-      setValue('well', editData.well); // Explicitly set the value for the Select
+      // Explicitly set the value for the Select to ensure it updates.
+      setValue('well', editData.well, { shouldValidate: true });
       setSelectedDate(entryDate);
     } else if (!isEditing) {
         const well = getValues('well');
         resetForm(well, selectedDate);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editKey, monthlyData, isLoadingData]);
+  }, [editKey, monthlyData, isLoadingData, reset, setValue]);
 
 
   useEffect(() => {
@@ -325,9 +326,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                     <FormItem>
                       <FormLabel>Poços de Captação</FormLabel>
                       <Select
-                        onValueChange={(value) => {
-                            field.onChange(value);
-                        }}
+                        onValueChange={field.onChange}
                         value={field.value}
                         disabled={isEditing}
                       >
@@ -471,3 +470,5 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     </div>
   );
 }
+
+    
