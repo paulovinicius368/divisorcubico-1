@@ -1,5 +1,6 @@
+
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -38,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Download, FileSpreadsheet, Pencil, Trash2, X, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Trash2, X, Calendar as CalendarIcon, AlertTriangle, CheckSquare, Square } from "lucide-react";
 import type { MonthlyData } from "./cube-splitter-app";
 import { format, parseISO, getYear, getMonth, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,24 +50,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "./ui/checkbox";
 
 type MonthlyReportProps = {
   data: MonthlyData;
   onEdit: (key: string) => void;
   onDelete: (key: string) => void;
+  onBulkDelete: (keys: string[]) => void;
 };
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportProps) {
+export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: MonthlyReportProps) {
   const [deleteCandidate, setDeleteCandidate] = useState<string | null>(null);
+  const [bulkDeleteCandidate, setBulkDeleteCandidate] = useState<string[]>([]);
   const [filterWell, setFilterWell] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string>("");
   const [filterMonth, setFilterMonth] = useState<string>("");
   const [filterStartDate, setFilterStartDate] = useState<Date | undefined>();
   const [filterEndDate, setFilterEndDate] = useState<Date | undefined>();
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   const sortedKeys = useMemo(() => Object.keys(data).sort(
     (a, b) => {
@@ -120,6 +125,34 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     };
   }, [sortedKeys, data, filterWell, filterYear, filterMonth, filterStartDate, filterEndDate]);
   
+  useEffect(() => {
+    // Clear selection when filters change to avoid confusion
+    setSelectedKeys(new Set());
+  }, [filteredKeys]);
+
+
+  const handleToggleSelect = (key: string) => {
+    setSelectedKeys(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllFiltered = () => {
+    if (selectedKeys.size === filteredKeys.length) {
+      // If all are selected, deselect all
+      setSelectedKeys(new Set());
+    } else {
+      // Otherwise, select all filtered
+      setSelectedKeys(new Set(filteredKeys));
+    }
+  };
+
   const clearFilters = () => {
     setFilterWell("");
     setFilterYear("");
@@ -242,6 +275,12 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
     }
   };
 
+  const confirmBulkDelete = () => {
+    onBulkDelete(bulkDeleteCandidate);
+    setBulkDeleteCandidate([]);
+    setSelectedKeys(new Set());
+  }
+
   const getDetailedAllocation = (key: string) => {
     const { allocation, total, hidrometro } = data[key];
     
@@ -276,6 +315,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
 
   const deleteCandidateDate = deleteCandidate ? data[deleteCandidate]?.date : null;
   const hasFilters = filterWell || filterYear || filterMonth || filterStartDate || filterEndDate;
+  const areAllFilteredSelected = selectedKeys.size > 0 && selectedKeys.size === filteredKeys.length;
 
   return (
     <>
@@ -311,7 +351,8 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
         </CardHeader>
         <CardContent>
           {sortedKeys.length > 0 && (
-            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/50">
+            <div className="mb-6 space-y-4 p-4 border rounded-lg bg-muted/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <Select value={filterWell} onValueChange={setFilterWell}>
                   <SelectTrigger><SelectValue placeholder="Filtrar por poço" /></SelectTrigger>
                   <SelectContent>
@@ -335,7 +376,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-full justify-start text-left font-normal",
+                        "w-full justify-start text-left font-normal bg-background",
                         !filterStartDate && "text-muted-foreground"
                       )}
                     >
@@ -358,7 +399,7 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-full justify-start text-left font-normal",
+                        "w-full justify-start text-left font-normal bg-background",
                         !filterEndDate && "text-muted-foreground"
                       )}
                     >
@@ -377,10 +418,25 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                     />
                   </PopoverContent>
                 </Popover>
-                <Button variant="ghost" onClick={clearFilters} disabled={!hasFilters} className="md:col-span-3">
+                <Button variant="ghost" onClick={clearFilters} disabled={!hasFilters} className="md:col-start-3">
                   <X className="mr-2 h-4 w-4" />
                   Limpar Filtros
                 </Button>
+              </div>
+              {filteredKeys.length > 0 && (
+                <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-muted-foreground/20">
+                  <Button variant="outline" size="sm" onClick={handleSelectAllFiltered} className="bg-background">
+                    {areAllFilteredSelected ? <CheckSquare className="mr-2" /> : <Square className="mr-2"/>}
+                    {areAllFilteredSelected ? 'Desmarcar Todos' : `Selecionar ${filteredKeys.length} Visíveis`}
+                  </Button>
+                  {selectedKeys.size > 0 && (
+                     <Button variant="destructive" size="sm" onClick={() => setBulkDeleteCandidate(Array.from(selectedKeys))}>
+                       <Trash2 className="mr-2 h-4 w-4"/>
+                       Excluir {selectedKeys.size} Lançamento(s)
+                     </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -417,22 +473,30 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
                 return (
                   <AccordionItem value={key} key={key} className={cn(overflowWarning && "bg-red-50/50 rounded-md")}>
                      <div className="flex w-full items-center justify-between border-b">
-                        <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 text-left hover:no-underline">
-                          <div className="flex flex-col items-start">
-                            <span>{formattedDate}</span>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                              <span>Poço: {well}</span>
-                              <span>Hidrômetro: {hidrometro}</span>
-                              <span>Total: {total.toFixed(2)} m³</span>
-                              {overflowWarning && (
-                                <span className="flex items-center gap-1.5 text-red-600 font-medium">
-                                  <AlertTriangle className="h-4 w-4" />
-                                  Ajuste Manual Necessário
-                                </span>
-                              )}
+                        <div className="flex items-center gap-2 flex-1 pl-4">
+                          <Checkbox
+                             id={`select-${key}`}
+                             checked={selectedKeys.has(key)}
+                             onCheckedChange={() => handleToggleSelect(key)}
+                             aria-label={`Selecionar ${formattedDate}`}
+                           />
+                          <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 pl-2 text-left hover:no-underline">
+                            <div className="flex flex-col items-start">
+                              <span>{formattedDate}</span>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                <span>Poço: {well}</span>
+                                <span>Hidrômetro: {hidrometro}</span>
+                                <span>Total: {total.toFixed(2)} m³</span>
+                                {overflowWarning && (
+                                  <span className="flex items-center gap-1.5 text-red-600 font-medium">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    Ajuste Manual Necessário
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </AccordionTrigger>
+                          </AccordionTrigger>
+                        </div>
                         <div className="flex items-center gap-1 pl-4 pr-4">
                           <Button variant="ghost" size="icon" onClick={() => onEdit(key)}>
                             <Pencil className="h-4 w-4 text-blue-500" />
@@ -496,7 +560,23 @@ export default function MonthlyReport({ data, onEdit, onDelete }: MonthlyReportP
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDeleteCandidate(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Excluir</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className={cn(buttonVariants({variant: "destructive"}))}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteCandidate.length > 0} onOpenChange={(open) => !open && setBulkDeleteCandidate([])}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. Isso excluirá permanentemente
+              os {bulkDeleteCandidate.length} lançamentos selecionados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkDeleteCandidate([])}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete} className={cn(buttonVariants({variant: "destructive"}))}>Excluir {bulkDeleteCandidate.length} Itens</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

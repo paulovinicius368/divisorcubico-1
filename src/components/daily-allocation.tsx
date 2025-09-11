@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, parseISO, startOfDay, subDays } from "date-fns";
+import { format, parseISO, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Calendar as CalendarIcon,
@@ -73,7 +74,8 @@ type DailyAllocationProps = {
     total: number,
     result: AllocateHourlyVolumeOutput,
     well: string,
-    hidrometro: number
+    hidrometro: number,
+    originalKey?: string | null
   ) => Promise<boolean>;
   monthlyData: MonthlyData;
   editKey: string | null;
@@ -83,7 +85,7 @@ type DailyAllocationProps = {
 
 export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, isLoadingData }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    undefined
+    new Date()
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [, setAllocationResult] =
@@ -118,9 +120,12 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     if (editKey && monthlyData[editKey] && !isLoadingData) {
       const editData = monthlyData[editKey];
       const entryDate = parseISO(editData.date);
-      const previousDayDate = subDays(entryDate, 1);
-      const previousDayKey = `${format(previousDayDate, "yyyy-MM-dd")}-${editData.well}`;
-      const previousDayData = monthlyData[previousDayKey];
+      
+      const allEntriesForWell = Object.values(monthlyData)
+        .filter(d => d.well === editData.well && parseISO(d.date) < entryDate)
+        .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+      
+      const previousDayData = allEntriesForWell[0];
       
       reset({
           well: editData.well,
@@ -137,26 +142,27 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
 
   useEffect(() => {
-    if (isEditing || isLoadingData) return;
+    if (isLoadingData) return;
 
     if (selectedDate && currentWell) {
-        const lastEntryForWell = Object.values(monthlyData)
-            .filter(d => d.well === currentWell && new Date(d.date) < selectedDate)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            [0];
+        const allEntriesForWell = Object.values(monthlyData)
+            .filter(d => d.well === currentWell && parseISO(d.date) < startOfDay(selectedDate))
+            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+            
+        const lastEntryForWell = allEntriesForWell[0];
         
         setValue("hidrometroAnterior", lastEntryForWell?.hidrometro ?? 0);
     } else {
         setValue("hidrometroAnterior", 0);
     }
-  }, [selectedDate, currentWell, monthlyData, setValue, isEditing, isLoadingData]);
+  }, [selectedDate, currentWell, monthlyData, setValue, isLoadingData]);
 
 
   useEffect(() => {
     const anterior = getValues("hidrometroAnterior");
     const atual = getValues("hidrometroAtual");
     
-    if (anterior > 0 && atual > anterior) {
+    if (anterior >= 0 && atual > anterior) {
       setTotalVolume(atual - anterior);
     } else {
       setTotalVolume(0);
@@ -189,7 +195,8 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         volume,
         result,
         currentWellValue,
-        currentHidrometroAtual
+        currentHidrometroAtual,
+        editKey
       );
       
       if (!success) return;
@@ -219,11 +226,11 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     setAllocationResult(null);
     setError(null);
 
-    const calculatedVolume = values.hidrometroAnterior > 0 && values.hidrometroAtual > values.hidrometroAnterior
+    const calculatedVolume = values.hidrometroAnterior >= 0 && values.hidrometroAtual > values.hidrometroAnterior
       ? values.hidrometroAtual - values.hidrometroAnterior
       : 0;
 
-    if (calculatedVolume <= 0 && values.hidrometroAnterior > 0) {
+    if (calculatedVolume <= 0) {
       await handleSaveAndAdvance({ allocation: [] }, calculatedVolume);
       setIsSubmitting(false);
       return;
@@ -318,12 +325,9 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                       <FormLabel>Poços de Captação</FormLabel>
                       <Select
                         onValueChange={(value) => {
-                          if (!isEditing) {
-                              field.onChange(value);
-                          }
+                            field.onChange(value);
                         }}
                         value={field.value}
-                        disabled={isEditing}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -351,7 +355,6 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                           "w-full justify-start text-left font-normal",
                           !selectedDate && "text-muted-foreground"
                         )}
-                        disabled={isEditing}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {selectedDate ? (
@@ -366,12 +369,12 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                         mode="single"
                         selected={selectedDate}
                         onSelect={(date) => {
-                          if (!isEditing && date) setSelectedDate(startOfDay(date));
+                          if (date) setSelectedDate(startOfDay(date));
                         }}
                         initialFocus
                         locale={ptBR}
                         disabled={(date) => {
-                          if (isEditing) return true;
+                          if (isEditing) return false;
                           const dateString = format(date, "yyyy-MM-dd");
                           const well = getValues("well");
                           if (!well) return false;

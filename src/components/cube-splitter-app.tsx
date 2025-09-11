@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback }from "react";
-import { collection, onSnapshot, doc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, deleteDoc, query, orderBy, writeBatch } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
 import { db, auth } from "@/lib/firebase";
@@ -68,15 +68,25 @@ export default function CubeSplitterApp() {
     total: number,
     result: AllocateHourlyVolumeOutput,
     well: string,
-    hidrometro: number
+    hidrometro: number,
+    originalKey?: string | null
   ) => {
-    const key = `${date}-${well}`;
+    const newKey = `${date}-${well}`;
+
     try {
-      const newEntry: MonthlyData[string] = { 
-        total, 
-        allocation: result.allocation, 
-        well, 
-        hidrometro, 
+      const batch = writeBatch(db);
+
+      // If it's an edit and the key has changed (date or well), delete the old document
+      if (originalKey && originalKey !== newKey) {
+        const oldDocRef = doc(db, "allocations", originalKey);
+        batch.delete(oldDocRef);
+      }
+
+      const newEntry: MonthlyData[string] = {
+        total,
+        allocation: result.allocation,
+        well,
+        hidrometro,
         date,
       };
 
@@ -84,7 +94,10 @@ export default function CubeSplitterApp() {
         newEntry.overflowWarning = result.overflowWarning;
       }
       
-      await setDoc(doc(db, "allocations", key), newEntry, { merge: true });
+      const newDocRef = doc(db, "allocations", newKey);
+      batch.set(newDocRef, newEntry, { merge: true });
+
+      await batch.commit();
 
       toast({
         title: "Salvo com sucesso!",
@@ -102,6 +115,7 @@ export default function CubeSplitterApp() {
       return false;
     }
   };
+
 
   const handleDeleteDay = async (key: string) => {
     const entryDate = monthlyData[key]?.date;
@@ -121,6 +135,30 @@ export default function CubeSplitterApp() {
       });
     }
   };
+
+  const handleBulkDelete = async (keys: string[]) => {
+    try {
+      const batch = writeBatch(db);
+      keys.forEach(key => {
+        const docRef = doc(db, "allocations", key);
+        batch.delete(docRef);
+      });
+      await batch.commit();
+
+      toast({
+        title: "Exclusão em Massa Concluída",
+        description: `${keys.length} lançamento(s) foram removidos.`,
+        variant: "destructive",
+      });
+    } catch (error) {
+       console.error("Error bulk deleting allocations: ", error);
+       toast({
+        title: "Erro na Exclusão em Massa",
+        description: "Não foi possível remover os lançamentos selecionados.",
+        variant: "destructive",
+      });
+    }
+  }
 
   const handleEditDay = (key: string) => {
     setEditKey(key);
@@ -191,6 +229,7 @@ export default function CubeSplitterApp() {
               data={monthlyData} 
               onEdit={handleEditDay}
               onDelete={handleDeleteDay}
+              onBulkDelete={handleBulkDelete}
             />
           )}
         </TabsContent>
