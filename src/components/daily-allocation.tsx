@@ -57,7 +57,7 @@ const formSchema = z.object({
   hidrometroAtual: z.coerce
     .number({ invalid_type_error: "Por favor, insira um número." })
     .min(0, "O hidrômetro deve ser um número positivo."),
-  well: z.string({ required_error: "Por favor, selecione um poço." }),
+  well: z.string({ required_error: "Por favor, selecione um poço." }).min(1, "Por favor, selecione um poço."),
 }).refine((data) => {
     if (data.hidrometroAnterior > 0) {
       return data.hidrometroAtual >= data.hidrometroAnterior;
@@ -132,6 +132,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
           hidrometroAtual: editData.hidrometro,
           hidrometroAnterior: previousDayData?.hidrometro ?? 0,
       });
+      setValue('well', editData.well); // Explicitly set the value for the Select
       setSelectedDate(entryDate);
     } else if (!isEditing) {
         const well = getValues('well');
@@ -356,6 +357,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                           "w-full justify-start text-left font-normal",
                           !selectedDate && "text-muted-foreground"
                         )}
+                        disabled={isEditing}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {selectedDate ? (
