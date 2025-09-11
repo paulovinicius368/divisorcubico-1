@@ -142,7 +142,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
 
 
   useEffect(() => {
-    if (isLoadingData) return;
+    if (isLoadingData || isEditing) return;
 
     if (selectedDate && currentWell) {
         const allEntriesForWell = Object.values(monthlyData)
@@ -155,7 +155,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     } else {
         setValue("hidrometroAnterior", 0);
     }
-  }, [selectedDate, currentWell, monthlyData, setValue, isLoadingData]);
+  }, [selectedDate, currentWell, monthlyData, setValue, isLoadingData, isEditing]);
 
 
   useEffect(() => {
@@ -328,6 +328,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                             field.onChange(value);
                         }}
                         value={field.value}
+                        disabled={isEditing}
                       >
                         <FormControl>
                           <SelectTrigger>
