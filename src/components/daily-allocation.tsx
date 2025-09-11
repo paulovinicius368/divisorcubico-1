@@ -80,10 +80,11 @@ type DailyAllocationProps = {
   monthlyData: MonthlyData;
   editKey: string | null;
   onClearEdit: () => void;
+  onCancelEdit: () => void;
   isLoadingData: boolean;
 };
 
-export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, isLoadingData }: DailyAllocationProps) {
+export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, onCancelEdit, isLoadingData }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     new Date()
   );
@@ -127,20 +128,17 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       
       const previousDayData = allEntriesForWell[0];
       
-      const defaultValues = {
+      reset({
           well: editData.well,
           hidrometroAtual: editData.hidrometro,
-          hidrometroAnterior: previousDayData?.hidrometro ?? 0,
-      };
-
-      reset(defaultValues);
+          hidrometroAnterior: previousDayData?.hidrometro ?? (editData.hidrometro - editData.total),
+      });
       setSelectedDate(entryDate);
-    } else if (!isEditing) {
+    } else {
         const well = getValues('well');
         resetForm(well, selectedDate);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editKey, monthlyData]);
+  }, [editKey, monthlyData, reset, getValues]);
 
 
   useEffect(() => {
@@ -206,7 +204,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       setAllocationResult(null);
 
       if (isEditing) {
-        resetForm(getValues('well'));
+        // Redirection is handled in parent component
       } else {
         const nextDay = new Date(selectedDate);
         nextDay.setDate(nextDay.getDate() + 1);
@@ -328,7 +326,6 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
-                        disabled={isEditing}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -377,9 +374,14 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                         disabled={(date) => {
                           const dateString = format(date, "yyyy-MM-dd");
                           const well = getValues("well");
+                          const currentEditKey = `${dateString}-${well}`;
                           if (!well) return false;
-                          const key = `${dateString}-${well}`;
-                          return !!monthlyData[key] && !isEditing;
+                          // Allow selection if it's the item being edited
+                          if (isEditing && editKey === currentEditKey) {
+                            return false;
+                          }
+                          // Block if another entry already exists for that day and well
+                          return !!monthlyData[currentEditKey];
                         }}
                       />
                     </PopoverContent>
@@ -447,8 +449,8 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
               </fieldset>
               {error && <p className="text-destructive text-sm">{error}</p>}
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={isSubmitting} className="w-full">
+            <CardFooter className={cn("flex gap-2", isEditing ? "flex-col" : "")}>
+               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -461,6 +463,12 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                   </>
                 )}
               </Button>
+              {isEditing && (
+                 <Button type="button" variant="outline" onClick={onCancelEdit} className="w-full">
+                    <X className="mr-2 h-4 w-4" />
+                    Cancelar Edição
+                </Button>
+              )}
             </CardFooter>
           </form>
         </Form>

@@ -103,6 +103,10 @@ export default function CubeSplitterApp() {
         title: "Salvo com sucesso!",
         description: `Os dados de ${well} para ${date} foram salvos.`,
       });
+      
+      if (originalKey) { // If it was an edit
+        setActiveTab("monthly");
+      }
       setEditKey(null);
       return true;
     } catch (error) {
@@ -165,6 +169,11 @@ export default function CubeSplitterApp() {
     setActiveTab("daily");
   };
 
+  const handleCancelEdit = () => {
+    setEditKey(null);
+    setActiveTab("monthly");
+  };
+
   const handleLogout = async () => {
     await auth.signOut();
     router.push('/login');
@@ -220,6 +229,7 @@ export default function CubeSplitterApp() {
             monthlyData={monthlyData} 
             editKey={editKey}
             onClearEdit={() => setEditKey(null)}
+            onCancelEdit={handleCancelEdit}
             isLoadingData={isLoading}
           />
         </TabsContent>
