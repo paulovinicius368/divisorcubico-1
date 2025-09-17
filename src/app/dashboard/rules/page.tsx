@@ -18,35 +18,34 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // Helper function to check if a user is an admin
-    function isAdmin(userId) {
-      return exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins can create, read, and update any user document
-      allow read, create, update: if request.auth != null && isAdmin(request.auth.uid);
+      // Admins can read, write (create/update) all user docs.
+      allow read, write: if request.auth != null && isAdmin();
+
+      // Admins can delete users, but not themselves.
+      allow delete: if request.auth != null && isAdmin() && request.auth.uid != userId;
       
-      // Admins can delete users, but not themselves
-      allow delete: if request.auth != null && isAdmin(request.auth.uid) && request.auth.uid != userId;
-      
-      // A user can read their own document
+      // A user can read their own document.
       allow get: if request.auth != null && request.auth.uid == userId;
     }
 
     // Rules for the 'allocations' collection
     match /allocations/{allocationId} {
-      // Any authenticated user can read all allocation documents
+      // Any authenticated user can read allocations.
       allow read: if request.auth != null;
       
-      // Any authenticated user can create or update allocations
+      // Any authenticated user can create or update allocations.
       allow create, update: if request.auth != null;
       
-      // Only admins can delete allocations
-      allow delete: if request.auth != null && isAdmin(request.auth.uid);
+      // Only admins can delete allocations.
+      allow delete: if request.auth != null && isAdmin();
     }
   }
 }
