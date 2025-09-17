@@ -106,11 +106,19 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
 
     const formattedName = formatName(name);
     const formattedEmail = email.toLowerCase();
+    
+    // This is a workaround to create a user without signing out the admin.
+    // The ideal solution is to use the Firebase Admin SDK in a Cloud Function.
+    // We'll create a temporary auth instance.
+    const { initializeApp } = await import('firebase/app');
+    const { getAuth: getTempAuth } = await import('firebase/auth');
+    
+    const tempApp = initializeApp({ ...auth.app.options }, `temp-signup-${Date.now()}`);
+    const tempAuth = getTempAuth(tempApp);
+
 
     try {
-      // NOTE: This creates a temporary auth session which is not ideal,
-      // a backend function would be a better way to create users without logging in.
-      const userCredential = await createUserWithEmailAndPassword(auth, formattedEmail, password);
+      const userCredential = await createUserWithEmailAndPassword(tempAuth, formattedEmail, password);
       const user = userCredential.user;
       
       await updateProfile(user, { displayName: formattedName });
@@ -128,10 +136,8 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
         description: `${formattedName} foi adicionado como ${role === 'admin' ? 'Administrador' : 'Usuário'}.`,
       });
 
-      // It's a workaround. We sign out the admin to re-authenticate with their own credentials.
-      // A better solution would use Firebase Admin SDK in a Cloud Function.
-      await auth.signOut();
       onFinished();
+
     } catch (error: any) {
       let description = `Ocorreu um erro desconhecido. Código: ${error.code}`;
       switch (error.code) {
@@ -159,6 +165,9 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       });
     } finally {
       setIsLoading(false);
+      // Clean up the temporary app instance
+      const { deleteApp } = await import('firebase/app');
+      deleteApp(tempApp).catch(console.error);
     }
   };
   
@@ -300,5 +309,3 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       </Card>
   );
 }
-
-    
