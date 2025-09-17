@@ -26,23 +26,17 @@ service cloud.firestore {
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins can read, write (create/update) all user docs.
+      // Admins can read and write all user docs to manage roles.
       allow read, write: if request.auth != null && isAdmin();
-
-      // Admins can delete users, but not themselves.
-      allow delete: if request.auth != null && isAdmin() && request.auth.uid != userId;
       
-      // A user can read their own document.
+      // A user can read their own document to get their role.
       allow get: if request.auth != null && request.auth.uid == userId;
     }
 
     // Rules for the 'allocations' collection
     match /allocations/{allocationId} {
-      // Any authenticated user can read allocations.
-      allow read: if request.auth != null;
-      
-      // Any authenticated user can create or update allocations.
-      allow create, update: if request.auth != null;
+      // Any authenticated user can read and write (create/update) allocations.
+      allow read, write: if request.auth != null;
       
       // Only admins can delete allocations.
       allow delete: if request.auth != null && isAdmin();
@@ -73,11 +67,11 @@ export default function RulesPage() {
     navigator.clipboard.writeText(rulesCode.trim())
       .then(() => {
         setCopied(true);
-        toast({ title: 'Código copiado!' });
-        setTimeout(() => setCopied(false), 2000);
+        toast({ title: 'Código copiado com sucesso!' });
+        setTimeout(() => setCopied(false), 3000);
       })
       .catch(err => {
-        toast({ title: 'Erro ao copiar', description: 'Não foi possível copiar o código.', variant: 'destructive' });
+        toast({ title: 'Erro ao copiar', description: 'Não foi possível copiar o código. Tente manualmente.', variant: 'destructive' });
       });
   };
   
@@ -86,36 +80,34 @@ export default function RulesPage() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Regras do Firestore</CardTitle>
-        <CardDescription>
-          Copie este código e cole no editor de Regras do Firestore no seu Console do Firebase.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="relative">
+    <div className="relative">
+      <Card>
+        <CardHeader>
+          <CardTitle>Regras do Firestore</CardTitle>
+          <CardDescription>
+            Copie este código e cole no editor de Regras do seu Console do Firebase.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <Textarea
             readOnly
             value={rulesCode.trim()}
             className="h-96 font-mono text-xs bg-muted/50 resize-none"
             aria-label="Código das regras do Firestore"
           />
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute top-2 right-2"
-            onClick={handleCopy}
-            aria-label="Copiar código"
-          >
-            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-          </Button>
-        </div>
-         <Button onClick={handleCopy} className="w-full">
-           {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
-           Copiar Código
-         </Button>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      
+      <div className="fixed bottom-4 right-4 z-50 md:bottom-8 md:right-8">
+        <Button 
+          onClick={handleCopy} 
+          size="lg"
+          className="h-16 w-16 rounded-full shadow-lg"
+          aria-label="Copiar código"
+        >
+          {copied ? <Check className="h-8 w-8" /> : <Copy className="h-8 w-8" />}
+        </Button>
+      </div>
+    </div>
   );
 }
