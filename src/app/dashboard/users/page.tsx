@@ -28,6 +28,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Loader2, MoreHorizontal, Trash2, UserPlus, Shield, User } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -99,13 +100,15 @@ export default function UsersPage() {
   const handleDeleteUser = async () => {
     if (!deleteCandidate) return;
 
-    // TODO: Deleting a user from Firestore doesn't delete them from Firebase Auth.
-    // This requires a Cloud Function to be handled securely. For now, we just delete the Firestore doc.
+    // This is a placeholder. Deleting a user requires an Admin SDK on a backend.
+    // For now, we'll just delete the Firestore doc.
     try {
       await deleteDoc(doc(db, 'users', deleteCandidate.uid));
+      // IMPORTANT: The cloud function to delete the auth user is not implemented.
+      // This will only remove them from the app's user list, not from Firebase Auth.
       toast({
-        title: 'Usuário Removido',
-        description: `O usuário ${deleteCandidate.email} foi removido do sistema.`,
+        title: 'Usuário Removido (Apenas do App)',
+        description: `O usuário ${deleteCandidate.email} foi removido da lista. A conta de autenticação ainda existe.`,
         variant: 'destructive',
       });
       setDeleteCandidate(null);
@@ -202,6 +205,7 @@ export default function UsersPage() {
                              Tornar Usuário
                            </DropdownMenuItem>
                          )}
+                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-500" onClick={() => setDeleteCandidate(user)}>
                           <Trash2 className="mr-2 h-4 w-4" />
                           Excluir
@@ -220,14 +224,14 @@ export default function UsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação removerá o usuário <span className="font-bold">{deleteCandidate?.email}</span> do sistema de permissões,
-              mas **não** excluirá a conta de autenticação do Firebase. Para exclusão permanente, use o Console do Firebase.
+              Esta ação removerá o usuário <span className="font-bold">{deleteCandidate?.email}</span> do sistema de permissões.
+              Para exclusão completa e segura (incluindo autenticação), é necessário usar o Firebase Admin SDK em um ambiente de servidor (Cloud Function), o que não está implementado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDeleteCandidate(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteUser} className={cn(buttonVariants({variant: "destructive"}))}>
-              Sim, Excluir Usuário
+              Sim, Excluir do App
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -235,5 +239,7 @@ export default function UsersPage() {
     </Card>
   );
 }
+
+    
 
     
