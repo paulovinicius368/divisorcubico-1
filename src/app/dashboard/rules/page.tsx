@@ -21,26 +21,27 @@ service cloud.firestore {
 
     // Helper function to check if the requesting user is an admin
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Check if the user document exists and has the role 'admin'.
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins can perform any action on any user document to manage roles.
-      allow read, write, delete: if request.auth != null && isAdmin();
+      // Admins can do anything.
+      allow read, write: if isAdmin();
       
-      // A non-admin user can only read their own document to get their role.
-      // They cannot create, update, or delete their own or other's documents.
+      // Authenticated users can read their own user document.
       allow get: if request.auth != null && request.auth.uid == userId;
     }
 
     // Rules for the 'allocations' collection
     match /allocations/{allocationId} {
-      // Any authenticated user can read, create, and update allocations.
-      allow read, create, update: if request.auth != null;
+      // Admins can do anything.
+      allow read, write: if isAdmin();
       
-      // Only admins are allowed to delete allocations.
-      allow delete: if request.auth != null && isAdmin();
+      // Non-admin users can create and update, but not delete.
+      allow create, update: if request.auth != null;
     }
   }
 }
