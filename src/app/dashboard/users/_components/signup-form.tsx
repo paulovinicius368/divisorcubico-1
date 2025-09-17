@@ -109,15 +109,25 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
     // We'll create a temporary auth instance.
     const { initializeApp } = await import('firebase/app');
     const { getAuth: getTempAuth } = await import('firebase/auth');
+    const { getFirestore: getTempFirestore } = await import('firebase/firestore');
     
     const tempApp = initializeApp(firebaseConfig, `temp-signup-${Date.now()}`);
     const tempAuth = getTempAuth(tempApp);
+    const tempDb = getTempFirestore(tempApp);
 
     try {
       const userCredential = await createUserWithEmailAndPassword(tempAuth, formattedEmail, password);
       const user = userCredential.user;
       
       await updateProfile(user, { displayName: formattedName });
+
+      // Create user document in Firestore with 'user' role
+      await setDoc(doc(tempDb, "users", user.uid), {
+        email: formattedEmail,
+        displayName: formattedName,
+        role: 'user', 
+        createdAt: new Date().toISOString(),
+      });
       
       toast({
         title: 'Usuário criado com sucesso!',
