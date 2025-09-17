@@ -4,25 +4,22 @@ import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volu
 // Defines the operational parameters for each well
 const wellConfigs = {
   "MAAG": {
-    startHour: 6,
-    endHour: 17, // Corrected: Operates from 6:00 up to (but not including) 18:00
+    hours: Array.from({ length: 12 }, (_, i) => 6 + i), // 6 to 17
     limit: 19,
     // A more varied bell-curve pattern for volume distribution
     pattern: [0.4, 0.6, 0.8, 0.95, 1.0, 0.95, 0.9, 0.85, 0.8, 0.7, 0.6, 0.5],
   },
   "PECUÁRIA": {
-    startHour: 6,
-    endHour: 20, // Corrected: Operates from 6:00 up to (but not including) 21:00
+    hours: Array.from({ length: 15 }, (_, i) => 6 + i), // 6 to 20
     limit: 10,
     // A longer, more varied pattern for a longer operational window
     pattern: [0.3, 0.45, 0.6, 0.75, 0.9, 1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.6, 0.5, 0.45],
   },
   "TCHE": {
-    startHour: 7,
-    endHour: 18, // Operates from 7:00 up to 19:00
-    limit: Infinity, // No limit
-    // A more pronounced bell curve for typical usage
-    pattern: [0.4, 0.65, 0.85, 1.0, 1.0, 1.0, 1.0, 0.9, 0.75, 0.6, 0.5, 0.4],
+    hours: [1, 2, 8, 9, 16, 17], // Discontinuous hours
+    limit: 12,
+    // A simple pattern for the 6 operational hours
+    pattern: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
   },
 };
 
@@ -31,7 +28,7 @@ const wellConfigs = {
  * using a deterministic, pattern-based algorithm.
  *
  * @param totalDailyVolume The total volume in cubic meters for the day.
- * @param well The name of the well (e.g., "MAAG", "PECUÁRIA").
+ * @param well The name of the well (e.g., "MAAG", "PECUÁRIA", "TCHE").
  * @returns An object containing the hourly allocation and an optional overflow warning.
  */
 export function allocateVolume(
@@ -39,21 +36,21 @@ export function allocateVolume(
   well: "MAAG" | "PECUÁRIA" | "TCHE" | string
 ): AllocateHourlyVolumeOutput {
   const config = wellConfigs[well as keyof typeof wellConfigs] || wellConfigs["TCHE"];
-  const { startHour, endHour, limit, pattern } = config;
+  const { hours: operationalHours, limit, pattern } = config;
 
   if (totalDailyVolume <= 0) {
      const allocation = Array.from({ length: 24 }, (_, i) => ({ hour: i, volume: 0 }));
      return { allocation };
   }
-
-  const operationalHours = endHour - startHour + 1;
-  const patternSum = pattern.slice(0, operationalHours).reduce((sum, p) => sum + p, 0);
+  
+  const operationalHoursSet = new Set(operationalHours);
+  const patternSum = pattern.slice(0, operationalHours.length).reduce((sum, p) => sum + p, 0);
 
   // Initial distribution
   let allocation = Array.from({ length: 24 }, (_, hour) => {
     let volume = 0;
-    if (hour >= startHour && hour <= endHour) {
-      const patternIndex = hour - startHour;
+    if (operationalHoursSet.has(hour)) {
+      const patternIndex = operationalHours.indexOf(hour);
       const weight = pattern[patternIndex] || 0;
       if (patternSum > 0) {
         volume = (totalDailyVolume * weight) / patternSum;
@@ -81,7 +78,7 @@ export function allocateVolume(
       break; // No more excess to redistribute
     }
 
-    const availableHoursForRedistribution = allocation.filter(item => !item.atLimit && item.hour >= startHour && item.hour <= endHour);
+    const availableHoursForRedistribution = allocation.filter(item => !item.atLimit && operationalHoursSet.has(item.hour));
     if (availableHoursForRedistribution.length === 0) {
       overflowWarning = "Hourly volume limit exceeded.";
       break; // No hours available to take on more volume
@@ -92,7 +89,7 @@ export function allocateVolume(
     if (totalCapacity < totalExcess) {
       // Distribute what we can, the rest is overflow
       availableHoursForRedistribution.forEach(item => {
-        const proportion = (limit - item.volume) / totalCapacity;
+        const proportion = totalCapacity > 0 ? (limit - item.volume) / totalCapacity : (1 / availableHoursForRedistribution.length);
         item.volume += totalExcess * proportion;
       });
       overflowWarning = "Hourly volume limit exceeded.";
@@ -116,7 +113,7 @@ export function allocateVolume(
   if (Math.abs(difference) > 0.001) {
     const eligibleForCorrection = allocation
         .map((item, index) => ({...item, index}))
-        .filter(item => item.hour >= startHour && item.hour <= endHour && !item.atLimit)
+        .filter(item => operationalHoursSet.has(item.hour) && !item.atLimit)
         .sort((a,b) => b.volume - a.volume);
     
     if (eligibleForCorrection.length > 0) {
@@ -124,7 +121,7 @@ export function allocateVolume(
         allocation[targetIndex].volume += difference;
     } else {
         // If all are at limit, add to the first operational hour
-        const firstHourIndex = allocation.findIndex(a => a.hour === startHour);
+        const firstHourIndex = allocation.findIndex(a => operationalHoursSet.has(a.hour));
         if (firstHourIndex !== -1) {
              allocation[firstHourIndex].volume += difference;
              if (allocation[firstHourIndex].volume > limit) {

@@ -342,7 +342,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                         <SelectContent>
                           <SelectItem value="MAAG">MAAG</SelectItem>
                           <SelectItem value="PECUÁRIA">PECUÁRIA</SelectItem>
-                          <SelectItem value="TCHE">TCHE</SelectItem>
+                          <SelectItem value="TCHE">TCHÊ</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
