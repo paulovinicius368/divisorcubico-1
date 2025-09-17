@@ -19,26 +19,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is an admin
+    // Helper function to check if the requesting user is an admin
     function isAdmin() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins can read and write all user docs to manage roles.
-      allow read, write: if request.auth != null && isAdmin();
+      // Admins can perform any action on any user document to manage roles.
+      allow read, write, delete: if request.auth != null && isAdmin();
       
-      // A user can read their own document to get their role.
+      // A non-admin user can only read their own document to get their role.
+      // They cannot create, update, or delete their own or other's documents.
       allow get: if request.auth != null && request.auth.uid == userId;
     }
 
     // Rules for the 'allocations' collection
     match /allocations/{allocationId} {
-      // Any authenticated user can read and write (create/update) allocations.
-      allow read, write: if request.auth != null;
+      // Any authenticated user can read, create, and update allocations.
+      allow read, create, update: if request.auth != null;
       
-      // Only admins can delete allocations.
+      // Only admins are allowed to delete allocations.
       allow delete: if request.auth != null && isAdmin();
     }
   }
@@ -80,7 +81,7 @@ export default function RulesPage() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative pb-24">
       <Card>
         <CardHeader>
           <CardTitle>Regras do Firestore</CardTitle>
@@ -103,7 +104,7 @@ export default function RulesPage() {
           onClick={handleCopy} 
           size="lg"
           className="h-16 w-16 rounded-full shadow-lg"
-          aria-label="Copiar código"
+          aria-label={copied ? "Código Copiado" : "Copiar Código"}
         >
           {copied ? <Check className="h-8 w-8" /> : <Copy className="h-8 w-8" />}
         </Button>

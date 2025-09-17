@@ -12,7 +12,6 @@ import {
   Loader2,
   Save,
   X,
-  ShieldAlert,
 } from "lucide-react";
 
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
@@ -47,7 +46,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { MonthlyData } from "./cube-splitter-app";
 import { Skeleton } from "./ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import type { UserRole } from "@/hooks/use-role";
 
 
 const formSchema = z.object({
@@ -82,9 +81,10 @@ type DailyAllocationProps = {
   onClearEdit: () => void;
   onCancelEdit: () => void;
   isLoadingData: boolean;
+  userRole: UserRole;
 };
 
-export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, onCancelEdit, isLoadingData }: DailyAllocationProps) {
+export default function DailyAllocation({ onSave, monthlyData, editKey, onClearEdit, onCancelEdit, isLoadingData, userRole }: DailyAllocationProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     new Date()
   );
@@ -103,12 +103,14 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     },
   });
 
-  const { watch, setValue, getValues, reset, control, trigger } = form;
+  const { watch, setValue, getValues, reset, control } = form;
   const hidrometroAtual = watch("hidrometroAtual");
   const hidrometroAnterior = watch("hidrometroAnterior");
   const currentWell = watch("well");
 
   const isEditing = !!editKey;
+  // Allow editing date only for admins
+  const canEditDate = isEditing && userRole === 'admin';
 
   useEffect(() => {
     if(!selectedDate) {
@@ -136,7 +138,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
       setSelectedDate(entryDate);
     } else {
         const well = getValues('well');
-        resetForm(well, selectedDate);
+        resetForm(well, new Date());
     }
   }, [editKey, monthlyData, reset, getValues]);
 
@@ -181,7 +183,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
   };
 
 
-  const handleSaveAndAdvance = async (
+  const handleSave = async (
     result: AllocateHourlyVolumeOutput,
     volume: number
   ) => {
@@ -199,25 +201,9 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         editKey
       );
       
-      if (!success) return;
-
-      setAllocationResult(null);
-
-      if (isEditing) {
-        // Redirection is handled in parent component
-      } else {
-        const nextDay = new Date(selectedDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-        setSelectedDate(nextDay);
-        
-        const currentHidroAtual = getValues('hidrometroAtual');
-        reset({
-          well: getValues('well'),
-          hidrometroAnterior: currentHidroAtual,
-          hidrometroAtual: 0,
-        });
-      }
+      return success;
     }
+    return false;
   };
 
 
@@ -229,20 +215,39 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     const calculatedVolume = values.hidrometroAnterior >= 0 && values.hidrometroAtual > values.hidrometroAnterior
       ? values.hidrometroAtual - values.hidrometroAnterior
       : 0;
-
-    if (calculatedVolume <= 0) {
-      await handleSaveAndAdvance({ allocation: [] }, calculatedVolume);
-      setIsSubmitting(false);
-      return;
-    }
-
+    
     try {
-      const result = await allocateHourlyVolume({
-        totalDailyVolume: calculatedVolume,
-        well: values.well,
-      });
+      let result : AllocateHourlyVolumeOutput;
+      if (calculatedVolume <= 0) {
+        result = { allocation: [] };
+      } else {
+        result = await allocateHourlyVolume({
+          totalDailyVolume: calculatedVolume,
+          well: values.well,
+        });
+      }
+
       setAllocationResult(result);
-      await handleSaveAndAdvance(result, calculatedVolume);
+      const success = await handleSave(result, calculatedVolume);
+
+      if (success) {
+        if (isEditing) {
+          // Parent component will switch tab
+          return;
+        }
+        // Advance to next day on success if creating
+        const nextDay = new Date(selectedDate!);
+        nextDay.setDate(nextDay.getDate() + 1);
+        setSelectedDate(nextDay);
+        
+        const currentHidroAtual = getValues('hidrometroAtual');
+        reset({
+          well: getValues('well'),
+          hidrometroAnterior: currentHidroAtual,
+          hidrometroAtual: 0,
+        });
+      }
+      
     } catch (e: any) {
       if (e.message && e.message.includes('503')) {
         setError("O serviço de alocação está sobrecarregado. Por favor, tente novamente em alguns instantes.");
@@ -299,16 +304,17 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
       <Card>
         <CardHeader>
-           <div className="flex justify-between items-center">
+           <div className="flex justify-between items-start">
             <div>
               <CardTitle>{isEditing ? 'Editar Lançamento' : 'Configurar Alocação'}</CardTitle>
               <CardDescription>
-                {isEditing && editDate ? `Modificando dados do dia ${format(parseISO(editDate), 'dd/MM/yyyy', { locale: ptBR })}.` : 'Insira os dados para salvar o lançamento diário.'}
+                {isEditing && editDate ? `Modificando dados de ${monthlyData[editKey!]?.well} do dia ${format(parseISO(editDate), 'dd/MM/yyyy', { locale: ptBR })}.` : 'Insira os dados para salvar o lançamento diário.'}
               </CardDescription>
             </div>
             {isEditing && (
-              <Button variant="ghost" size="icon" onClick={handleClearEdit}>
+              <Button variant="ghost" size="icon" onClick={handleClearEdit} className="-mt-2 -mr-2">
                 <X className="h-4 w-4" />
+                <span className="sr-only">Limpar Edição</span>
               </Button>
             )}
           </div>
@@ -316,7 +322,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
-              <fieldset className="space-y-6">
+              <fieldset className="space-y-6" disabled={isSubmitting}>
                 <FormField
                   control={control}
                   name="well"
@@ -326,6 +332,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
+                        disabled={isEditing && userRole !== 'admin'}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -349,9 +356,11 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
+                        disabled={!canEditDate && isEditing}
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !selectedDate && "text-muted-foreground"
+                          !selectedDate && "text-muted-foreground",
+                           (!canEditDate && isEditing) && "disabled:cursor-not-allowed disabled:opacity-70"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -386,6 +395,9 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
                       />
                     </PopoverContent>
                   </Popover>
+                   {isEditing && !canEditDate && (
+                      <p className="text-xs text-muted-foreground">Apenas administradores podem alterar a data de um lançamento.</p>
+                   )}
                 </div>
 
                 <FormField
@@ -449,12 +461,12 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
               </fieldset>
               {error && <p className="text-destructive text-sm">{error}</p>}
             </CardContent>
-            <CardFooter className={cn("flex gap-2", isEditing ? "flex-col" : "")}>
+            <CardFooter className={cn("flex gap-2", isEditing ? "flex-col-reverse" : "flex-col")}>
                <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Salvando...
+                    {isEditing ? 'Atualizando...' : 'Salvando...'}
                   </>
                 ) : (
                   <>

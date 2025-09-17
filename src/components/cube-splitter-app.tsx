@@ -4,7 +4,6 @@
 import { useState, useEffect } from "react";
 import { collection, onSnapshot, doc, setDoc, deleteDoc, query, orderBy, writeBatch } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { useRouter } from "next/navigation";
 import { db, auth } from "@/lib/firebase";
 
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
@@ -38,10 +37,10 @@ export default function CubeSplitterApp({ userRole }: CubeSplitterAppProps) {
   const [editKey, setEditKey] = useState<string | null>(null);
   const { toast } = useToast();
   const [user] = useAuthState(auth);
-  const router = useRouter();
 
 
   useEffect(() => {
+    if (!user) return;
     setIsLoading(true);
     const q = query(collection(db, "allocations"), orderBy("date", "asc"));
     
@@ -63,7 +62,7 @@ export default function CubeSplitterApp({ userRole }: CubeSplitterAppProps) {
     });
 
     return () => unsubscribe(); // Cleanup subscription on component unmount
-  }, [toast]);
+  }, [toast, user]);
 
 
   const handleSaveDay = async (
@@ -81,10 +80,11 @@ export default function CubeSplitterApp({ userRole }: CubeSplitterAppProps) {
 
       // If it's an edit and the key has changed (date or well), delete the old document
       if (originalKey && originalKey !== newKey) {
+        // Only admins can change the key (date or well) which requires a delete operation
         if (userRole !== 'admin') {
            toast({
             title: "Permissão Negada",
-            description: "Você não tem permissão para alterar a chave de um lançamento (data ou poço).",
+            description: "Você não tem permissão para alterar a data ou o poço de um lançamento existente.",
             variant: "destructive",
           });
           return false;
@@ -233,6 +233,7 @@ export default function CubeSplitterApp({ userRole }: CubeSplitterAppProps) {
             onClearEdit={() => setEditKey(null)}
             onCancelEdit={handleCancelEdit}
             isLoadingData={isLoading}
+            userRole={userRole}
           />
         </TabsContent>
         <TabsContent value="monthly" className="pt-6">
@@ -250,5 +251,3 @@ export default function CubeSplitterApp({ userRole }: CubeSplitterAppProps) {
     </>
   );
 }
-
-    
