@@ -7,45 +7,45 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useRole } from '@/hooks/use-role';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-const rulesCode = `
-rules_version = '2';
+const rulesCode = `rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper function to check if the requesting user is an admin
     function isAdmin() {
-      // Check if the user document exists and has the role 'admin'.
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins can do anything.
+      // Admins can read and write any user document.
       allow read, write: if isAdmin();
       
-      // Authenticated users can read their own user document.
+      // Authenticated users can read their own document but cannot change their own role.
       allow get: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId && !('role' in request.resource.data);
     }
 
     // Rules for the 'allocations' collection
     match /allocations/{allocationId} {
-      // Admins can do anything.
-      allow read, write: if isAdmin();
-      
-      // Non-admin users can create and update, but not delete.
+      // Authenticated users can read all allocations.
+      allow read: if request.auth != null;
+
+      // Authenticated users can create and update allocations.
       allow create, update: if request.auth != null;
+      
+      // Only admins can delete allocations.
+      allow delete: if isAdmin();
     }
   }
-}
-`;
+}`;
 
 export default function RulesPage() {
   const [copied, setCopied] = useState(false);
@@ -69,7 +69,7 @@ export default function RulesPage() {
     navigator.clipboard.writeText(rulesCode.trim())
       .then(() => {
         setCopied(true);
-        toast({ title: 'Código copiado com sucesso!' });
+        toast({ title: 'Código das regras copiado com sucesso!' });
         setTimeout(() => setCopied(false), 3000);
       })
       .catch(err => {
@@ -87,7 +87,7 @@ export default function RulesPage() {
         <CardHeader>
           <CardTitle>Regras do Firestore</CardTitle>
           <CardDescription>
-            Copie este código e cole no editor de Regras do seu Console do Firebase.
+            Use o botão flutuante para copiar o código abaixo e cole no editor de Regras do seu Console do Firebase.
           </CardDescription>
         </CardHeader>
         <CardContent>
