@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { doc, setDoc } from 'firebase/firestore';
@@ -22,7 +22,11 @@ type PasswordValidation = {
     hasSpecialChar: boolean;
 };
 
-export default function SignupForm() {
+type SignupFormProps = {
+    onFinished: () => void;
+}
+
+export default function SignupForm({ onFinished }: SignupFormProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -122,6 +126,11 @@ export default function SignupForm() {
       
       await updateProfile(user, { displayName: formattedName });
 
+      // This uses the temporary Firestore instance to create the user document,
+      // which is allowed because the main app's auth state is unaffected.
+      // This requires Firestore rules to allow a user to create another user's document
+      // which is typically only allowed for admins in a secure backend.
+      // For this client-side only app, we assume the user of this form is an admin.
       await setDoc(doc(tempDb, "users", user.uid), {
         email: formattedEmail,
         displayName: formattedName,
@@ -134,7 +143,7 @@ export default function SignupForm() {
         description: `${formattedName} foi adicionado como Usuário.`,
       });
 
-      resetForm();
+      onFinished();
 
     } catch (error: any) {
       let description = `Ocorreu um erro desconhecido. Código: ${error.code}`;
@@ -179,8 +188,16 @@ export default function SignupForm() {
   return (
       <Card className="w-full max-w-lg mx-auto">
         <CardHeader>
-            <CardTitle className="text-2xl">Adicionar Novo Usuário</CardTitle>
-            <CardDescription>Preencha os dados para criar uma nova conta de usuário.</CardDescription>
+            <div className='flex items-center gap-4'>
+                 <Button variant="outline" size="icon" className="h-8 w-8" onClick={onFinished}>
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="sr-only">Voltar</span>
+                </Button>
+                <div>
+                    <CardTitle className="text-2xl">Adicionar Novo Usuário</CardTitle>
+                    <CardDescription>Preencha os dados para criar uma nova conta de usuário.</CardDescription>
+                </div>
+            </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignup} className="space-y-4">
