@@ -8,7 +8,7 @@ import { useRole } from '@/hooks/use-role';
 import { auth } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 
-import { Loader2, LogOut, Cuboid, Users, LayoutDashboard, UserCog } from 'lucide-react';
+import { Loader2, LogOut, Cuboid, Users, LayoutDashboard, UserCog, ClipboardCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   SidebarProvider,
@@ -82,18 +82,32 @@ export default function DashboardLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
             {role === 'admin' && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname.startsWith('/dashboard/users')}
-                  tooltip={{ children: 'Usuários' }}
-                >
-                  <Link href="/dashboard/users">
-                    <Users />
-                    <span>Usuários</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith('/dashboard/users')}
+                    tooltip={{ children: 'Usuários' }}
+                  >
+                    <Link href="/dashboard/users">
+                      <Users />
+                      <span>Usuários</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === '/dashboard/rules'}
+                    tooltip={{ children: 'Regras (Copiar)' }}
+                  >
+                    <Link href="/dashboard/rules">
+                      <ClipboardCopy />
+                      <span>Regras (Copiar)</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
             )}
             <SidebarMenuItem>
                <SidebarMenuButton
@@ -141,5 +155,3 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
-
-    

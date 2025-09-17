@@ -513,7 +513,7 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete, us
                           </AccordionTrigger>
                         </div>
                         <div className="flex items-center gap-1 pl-4 pr-4">
-                          <Button variant="ghost" size="icon" onClick={() => onEdit(key)}>
+                          <Button variant="ghost" size="icon" onClick={() => onEdit(key)} disabled={userRole !== 'admin' && userRole !== 'user'}>
                             <Pencil className="h-4 w-4 text-blue-500" />
                           </Button>
                           {userRole === 'admin' && (
