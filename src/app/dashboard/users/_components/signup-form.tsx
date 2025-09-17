@@ -4,7 +4,8 @@
 import { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { firebaseConfig } from '@/lib/firebase-config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -114,7 +115,7 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
     const { getAuth: getTempAuth } = await import('firebase/auth');
     const { getFirestore: getTempFirestore } = await import('firebase/firestore');
     
-    const tempApp = initializeApp({ ...auth.app.options }, `temp-signup-${Date.now()}`);
+    const tempApp = initializeApp(firebaseConfig, `temp-signup-${Date.now()}`);
     const tempAuth = getTempAuth(tempApp);
     const tempDb = getTempFirestore(tempApp);
 
