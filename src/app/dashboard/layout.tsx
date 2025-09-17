@@ -83,18 +83,6 @@ export default function DashboardLayout({
             </SidebarMenuItem>
             {role === 'admin' && (
               <>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith('/dashboard/users')}
-                    tooltip={{ children: 'Usuários' }}
-                  >
-                    <Link href="/dashboard/users">
-                      <Users />
-                      <span>Usuários</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
                  <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
