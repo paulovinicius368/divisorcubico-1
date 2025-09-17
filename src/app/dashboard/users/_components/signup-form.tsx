@@ -33,7 +33,6 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'admin' | 'user'>('admin');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -126,17 +125,17 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       
       await updateProfile(user, { displayName: formattedName });
       
-      // Create user role document in Firestore using the temporary Firestore instance
+      // Create user role document in Firestore with 'user' role by default.
       await setDoc(doc(tempDb, "users", user.uid), {
         email: formattedEmail,
         displayName: formattedName,
-        role: role,
+        role: 'user',
         createdAt: new Date().toISOString(),
       });
       
       toast({
         title: 'Usuário criado com sucesso!',
-        description: `${formattedName} foi adicionado como ${role === 'admin' ? 'Administrador' : 'Usuário'}.`,
+        description: `${formattedName} foi adicionado como Usuário.`,
       });
 
       onFinished();
@@ -220,18 +219,6 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label>Nível de Acesso</Label>
-               <Select onValueChange={(value) => setRole(value as 'user' | 'admin')} defaultValue={role}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o nível de acesso" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="user">Usuário</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <Separator />
             <div className="grid gap-2">
               <Label htmlFor="password">Senha</Label>

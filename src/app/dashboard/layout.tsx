@@ -95,18 +95,6 @@ export default function DashboardLayout({
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith('/dashboard/rules')}
-                    tooltip={{ children: 'Regras do Firestore' }}
-                  >
-                    <Link href="/dashboard/rules">
-                      <FileJson />
-                      <span>Regras do Firestore</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </>
             )}
             <SidebarMenuItem>
