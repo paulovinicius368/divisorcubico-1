@@ -8,7 +8,7 @@ import { useRole } from '@/hooks/use-role';
 import { auth } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 
-import { Loader2, LogOut, Cuboid, Users, LayoutDashboard } from 'lucide-react';
+import { Loader2, LogOut, Cuboid, Users, LayoutDashboard, FileJson } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   SidebarProvider,
@@ -82,6 +82,7 @@ export default function DashboardLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
             {role === 'admin' && (
+              <>
                <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -94,6 +95,19 @@ export default function DashboardLayout({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith('/dashboard/rules')}
+                  tooltip={{ children: 'Regras' }}
+                >
+                  <Link href="/dashboard/rules">
+                    <FileJson />
+                    <span>Regras (Copiar)</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              </>
             )}
           </SidebarMenu>
         </SidebarContent>
@@ -129,5 +143,3 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
-
-    
