@@ -32,7 +32,7 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'user' | 'admin'>('admin');
+  const [role, setRole] = useState<'admin' | 'user'>('admin');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -112,9 +112,11 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
     // We'll create a temporary auth instance.
     const { initializeApp } = await import('firebase/app');
     const { getAuth: getTempAuth } = await import('firebase/auth');
+    const { getFirestore: getTempFirestore } = await import('firebase/firestore');
     
     const tempApp = initializeApp({ ...auth.app.options }, `temp-signup-${Date.now()}`);
     const tempAuth = getTempAuth(tempApp);
+    const tempDb = getTempFirestore(tempApp);
 
 
     try {
@@ -123,8 +125,8 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       
       await updateProfile(user, { displayName: formattedName });
       
-      // Create user role document in Firestore
-      await setDoc(doc(db, "users", user.uid), {
+      // Create user role document in Firestore using the temporary Firestore instance
+      await setDoc(doc(tempDb, "users", user.uid), {
         email: formattedEmail,
         displayName: formattedName,
         role: role,
