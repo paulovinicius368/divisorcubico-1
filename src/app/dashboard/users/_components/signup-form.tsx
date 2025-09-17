@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { doc, setDoc } from 'firebase/firestore';
@@ -22,11 +22,7 @@ type PasswordValidation = {
     hasSpecialChar: boolean;
 };
 
-type SignupFormProps = {
-    onFinished: () => void;
-}
-
-export default function SignupForm({ onFinished }: SignupFormProps) {
+export default function SignupForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,7 +73,14 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
-
+  
+  const resetForm = () => {
+      setName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setPasswordsMatch(null);
+  }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,8 +108,6 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
     const formattedName = formatName(name);
     const formattedEmail = email.toLowerCase();
     
-    // This is a workaround to create a user without signing out the admin.
-    // We'll create a temporary auth instance.
     const { initializeApp } = await import('firebase/app');
     const { getAuth: getTempAuth } = await import('firebase/auth');
     const { getFirestore: getTempFirestore } = await import('firebase/firestore');
@@ -121,7 +122,6 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       
       await updateProfile(user, { displayName: formattedName });
 
-      // Create user document in Firestore with 'user' role
       await setDoc(doc(tempDb, "users", user.uid), {
         email: formattedEmail,
         displayName: formattedName,
@@ -134,7 +134,7 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
         description: `${formattedName} foi adicionado como Usuário.`,
       });
 
-      onFinished();
+      resetForm();
 
     } catch (error: any) {
       let description = `Ocorreu um erro desconhecido. Código: ${error.code}`;
@@ -163,7 +163,6 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       });
     } finally {
       setIsLoading(false);
-      // Clean up the temporary app instance
       const { deleteApp } = await import('firebase/app');
       deleteApp(tempApp).catch(console.error);
     }
@@ -180,15 +179,8 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
   return (
       <Card className="w-full max-w-lg mx-auto">
         <CardHeader>
-           <div className="flex items-center gap-3 mb-2">
-            <Button variant="ghost" size="icon" onClick={onFinished}>
-                <ArrowLeft />
-            </Button>
-            <div>
-              <CardTitle className="text-2xl">Adicionar Novo Usuário</CardTitle>
-              <CardDescription>Preencha os dados para criar uma nova conta.</CardDescription>
-            </div>
-          </div>
+            <CardTitle className="text-2xl">Adicionar Novo Usuário</CardTitle>
+            <CardDescription>Preencha os dados para criar uma nova conta de usuário.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignup} className="space-y-4">
