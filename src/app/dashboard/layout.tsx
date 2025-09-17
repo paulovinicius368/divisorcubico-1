@@ -8,7 +8,7 @@ import { useRole } from '@/hooks/use-role';
 import { auth } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 
-import { Loader2, LogOut, Cuboid, Users, LayoutDashboard, UserCog } from 'lucide-react';
+import { Loader2, LogOut, Cuboid, Users, LayoutDashboard, UserCog, FileJson } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   SidebarProvider,
@@ -92,6 +92,18 @@ export default function DashboardLayout({
                     <Link href="/dashboard/users">
                       <Users />
                       <span>Usuários</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith('/dashboard/rules')}
+                    tooltip={{ children: 'Regras do Firestore' }}
+                  >
+                    <Link href="/dashboard/rules">
+                      <FileJson />
+                      <span>Regras do Firestore</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
