@@ -9,10 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { doc, setDoc } from 'firebase/firestore';
+import { UserPlus } from 'lucide-react';
 
 type PasswordValidation = {
     minLength: boolean;
@@ -84,6 +84,13 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       setPassword('');
       setConfirmPassword('');
       setPasswordsMatch(null);
+      setPasswordValidation({
+        minLength: false,
+        hasUppercase: false,
+        hasLowercase: false,
+        hasNumber: false,
+        hasSpecialChar: false,
+      });
   }
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -112,38 +119,23 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
     const formattedName = formatName(name);
     const formattedEmail = email.toLowerCase();
     
-    const { initializeApp } = await import('firebase/app');
+    // We use a temporary Firebase App instance to create the user.
+    // This avoids conflicts with the main app's auth state.
+    const { initializeApp, deleteApp } = await import('firebase/app');
     const { getAuth: getTempAuth } = await import('firebase/auth');
-    const { getFirestore: getTempFirestore } = await import('firebase/firestore');
     
-    const tempApp = initializeApp(firebaseConfig, `temp-signup-${Date.now()}`);
+    const tempAppName = `temp-signup-${Date.now()}`;
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
     const tempAuth = getTempAuth(tempApp);
-    const tempDb = getTempFirestore(tempApp);
 
     try {
       const userCredential = await createUserWithEmailAndPassword(tempAuth, formattedEmail, password);
       const user = userCredential.user;
       
       await updateProfile(user, { displayName: formattedName });
-
-      // This uses the temporary Firestore instance to create the user document,
-      // which is allowed because the main app's auth state is unaffected.
-      // This requires Firestore rules to allow a user to create another user's document
-      // which is typically only allowed for admins in a secure backend.
-      // For this client-side only app, we assume the user of this form is an admin.
-      await setDoc(doc(tempDb, "users", user.uid), {
-        email: formattedEmail,
-        displayName: formattedName,
-        role: 'user', 
-        createdAt: new Date().toISOString(),
-      });
       
-      toast({
-        title: 'Usuário criado com sucesso!',
-        description: `${formattedName} foi adicionado como Usuário.`,
-      });
-
       onFinished();
+      resetForm();
 
     } catch (error: any) {
       let description = `Ocorreu um erro desconhecido. Código: ${error.code}`;
@@ -172,8 +164,7 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       });
     } finally {
       setIsLoading(false);
-      const { deleteApp } = await import('firebase/app');
-      deleteApp(tempApp).catch(console.error);
+      await deleteApp(tempApp).catch(console.error);
     }
   };
   
@@ -189,13 +180,10 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
       <Card className="w-full max-w-lg mx-auto">
         <CardHeader>
             <div className='flex items-center gap-4'>
-                 <Button variant="outline" size="icon" className="h-8 w-8" onClick={onFinished}>
-                    <ArrowLeft className="h-4 w-4" />
-                    <span className="sr-only">Voltar</span>
-                </Button>
+                <UserPlus className="h-8 w-8 text-primary" />
                 <div>
                     <CardTitle className="text-2xl">Adicionar Novo Usuário</CardTitle>
-                    <CardDescription>Preencha os dados para criar uma nova conta de usuário.</CardDescription>
+                    <CardDescription>Preencha os dados para criar uma nova conta na Autenticação do Firebase.</CardDescription>
                 </div>
             </div>
         </CardHeader>
@@ -296,8 +284,8 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
                     </span>
                 ))}
              </div>
-            <Button type="submit" className="w-full" disabled={isLoading || !passwordsMatch}>
-              {isLoading ? <Loader2 className="animate-spin" /> : 'Criar Usuário'}
+            <Button type="submit" className="w-full" disabled={isLoading || passwordsMatch === false}>
+              {isLoading ? <Loader2 className="animate-spin" /> : 'Criar Usuário na Autenticação'}
             </Button>
           </form>
         </CardContent>

@@ -3,8 +3,7 @@
 
 import { useState } from 'react';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,8 +14,8 @@ import { Cuboid } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// This page is for creating the very first user.
-// After the first admin is created, this page should ideally be disabled again.
+// This page is for creating a new user in Firebase Authentication only.
+// It does NOT create a document in the Firestore database.
 export default function PublicSignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -46,22 +45,15 @@ export default function PublicSignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, formattedEmail, password);
       const user = userCredential.user;
       
+      // We only update the profile display name in the Authentication service
       await updateProfile(user, { displayName: formattedName });
-      
-      // Create user role document in Firestore with 'user' role by default.
-      // This needs to be manually changed to 'admin' in Firestore for the first user.
-      await setDoc(doc(db, "users", user.uid), {
-        email: formattedEmail,
-        displayName: formattedName,
-        role: 'user', 
-        createdAt: new Date().toISOString(),
-      });
       
       toast({
         title: 'Conta criada com sucesso!',
-        description: `Agora você pode fazer login. Para se tornar admin, seu acesso precisa ser liberado no banco de dados.`,
+        description: `O usuário ${formattedName} foi adicionado à Autenticação e já pode fazer login.`,
       });
       
+      // Sign out the new user immediately so the admin can create another one or log in.
       await auth.signOut();
       router.push('/login');
 
@@ -75,7 +67,7 @@ export default function PublicSignupPage() {
           description = 'O formato do endereço de e-mail não é válido.';
           break;
         case 'auth/weak-password':
-          description = 'A senha é muito fraca. Tente uma senha mais forte.';
+          description = 'A senha é muito fraca. Tente uma senha mais forte (mínimo 6 caracteres).';
           break;
         default:
           console.error("Erro no cadastro:", error);
@@ -101,7 +93,7 @@ export default function PublicSignupPage() {
             <Cuboid className="h-10 w-10 text-primary" />
             <div>
               <CardTitle className="text-2xl">DivisorCubico</CardTitle>
-              <CardDescription>Crie a sua conta inicial</CardDescription>
+              <CardDescription>Criar novo usuário na Autenticação</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -112,7 +104,7 @@ export default function PublicSignupPage() {
               <Input
                 id="name"
                 type="text"
-                placeholder="Seu nome"
+                placeholder="Nome do novo usuário"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -123,7 +115,7 @@ export default function PublicSignupPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="seu@email.com"
+                placeholder="usuario@email.com"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -154,7 +146,7 @@ export default function PublicSignupPage() {
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
+              {isLoading ? <Loader2 className="animate-spin" /> : 'Criar Usuário na Autenticação'}
             </Button>
              <p className="px-8 text-center text-sm text-muted-foreground">
                 Já tem uma conta?{' '}

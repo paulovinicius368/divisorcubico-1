@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { Cuboid } from '@/components/icons';
+import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -90,9 +92,19 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
+        <CardFooter className="flex flex-col items-center justify-center text-sm">
+            <Separator className="mb-4" />
+            <p className="text-muted-foreground">
+                Não tem uma conta?{' '}
+                <Link
+                  href="/signup"
+                  className="underline underline-offset-4 hover:text-primary"
+                >
+                  Crie um novo usuário
+                </Link>
+            </p>
+        </CardFooter>
       </Card>
     </div>
   );
 }
-
-    
