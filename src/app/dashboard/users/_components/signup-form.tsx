@@ -3,8 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { firebaseConfig } from '@/lib/firebase-config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { doc, setDoc } from 'firebase/firestore';
 
 type PasswordValidation = {
     minLength: boolean;
@@ -108,30 +106,18 @@ export default function SignupForm({ onFinished }: SignupFormProps) {
     const formattedEmail = email.toLowerCase();
     
     // This is a workaround to create a user without signing out the admin.
-    // The ideal solution is to use the Firebase Admin SDK in a Cloud Function.
     // We'll create a temporary auth instance.
     const { initializeApp } = await import('firebase/app');
     const { getAuth: getTempAuth } = await import('firebase/auth');
-    const { getFirestore: getTempFirestore } = await import('firebase/firestore');
     
     const tempApp = initializeApp(firebaseConfig, `temp-signup-${Date.now()}`);
     const tempAuth = getTempAuth(tempApp);
-    const tempDb = getTempFirestore(tempApp);
-
 
     try {
       const userCredential = await createUserWithEmailAndPassword(tempAuth, formattedEmail, password);
       const user = userCredential.user;
       
       await updateProfile(user, { displayName: formattedName });
-      
-      // Create user role document in Firestore with 'user' role by default.
-      await setDoc(doc(tempDb, "users", user.uid), {
-        email: formattedEmail,
-        displayName: formattedName,
-        role: 'user',
-        createdAt: new Date().toISOString(),
-      });
       
       toast({
         title: 'Usuário criado com sucesso!',
