@@ -164,7 +164,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     const anterior = getValues("hidrometroAnterior");
     const atual = getValues("hidrometroAtual");
     
-    if (anterior >= 0 && atual > anterior) {
+    if (anterior > 0 && atual > anterior) {
       setTotalVolume(atual - anterior);
     } else {
       setTotalVolume(0);
@@ -212,7 +212,7 @@ export default function DailyAllocation({ onSave, monthlyData, editKey, onClearE
     setAllocationResult(null);
     setError(null);
 
-    const calculatedVolume = values.hidrometroAnterior >= 0 && values.hidrometroAtual > values.hidrometroAnterior
+    const calculatedVolume = values.hidrometroAnterior > 0 && values.hidrometroAtual > values.hidrometroAnterior
       ? values.hidrometroAtual - values.hidrometroAnterior
       : 0;
     
