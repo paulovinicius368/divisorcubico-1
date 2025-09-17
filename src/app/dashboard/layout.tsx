@@ -83,18 +83,6 @@ export default function DashboardLayout({
             </SidebarMenuItem>
             {role === 'admin' && (
               <>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === '/dashboard/rules'}
-                    tooltip={{ children: 'Regras Firestore' }}
-                  >
-                    <Link href="/dashboard/rules">
-                      <FileLock2 />
-                      <span>Regras Finais</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         asChild
