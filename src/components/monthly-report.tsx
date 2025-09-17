@@ -318,6 +318,13 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete, us
       };
     });
   };
+  
+  const isVolumeExceeded = (well: string, volume: number) => {
+    if (well === 'MAAG' && volume > 19) return true;
+    if (well === 'PECUÁRIA' && volume > 10) return true;
+    if (well === 'TCHE' && volume > 12) return true;
+    return false;
+  };
 
   const deleteCandidateDate = deleteCandidate ? data[deleteCandidate]?.date : null;
   const hasFilters = filterWell || filterYear || filterMonth || filterStartDate || filterEndDate;
@@ -533,12 +540,12 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete, us
                                 <TableCell>{`${hour}:00 - ${
                                   hour + 1
                                 }:00`}</TableCell>
-                                <TableCell className={cn(((well === 'MAAG' && volume > 19) || (well === 'PECUÁRIA' && volume > 10)) && "text-red-600 font-bold")}>{volume.toFixed(2)}</TableCell>
+                                <TableCell className={cn(isVolumeExceeded(well, volume) && "text-red-600 font-bold")}>{volume.toFixed(2)}</TableCell>
                                 <TableCell className="font-mono">
                                   {hidrometroCalculado.toFixed(2)}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  {((well === 'MAAG' && volume > 19) || (well === 'PECUÁRIA' && volume > 10)) && <span className="text-red-600">Volume excedido</span>}
+                                  {isVolumeExceeded(well, volume) && <span className="text-red-600">Volume excedido</span>}
                                 </TableCell>
                               </TableRow>
                             ))
@@ -597,5 +604,3 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete, us
     </>
   );
 }
-
-    
