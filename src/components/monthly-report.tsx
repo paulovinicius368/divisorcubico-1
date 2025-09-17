@@ -51,19 +51,22 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "./ui/checkbox";
+import type { UserRole } from "@/hooks/use-role";
+
 
 type MonthlyReportProps = {
   data: MonthlyData;
   onEdit: (key: string) => void;
   onDelete: (key: string) => void;
   onBulkDelete: (keys: string[]) => void;
+  userRole: UserRole;
 };
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: MonthlyReportProps) {
+export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete, userRole }: MonthlyReportProps) {
   const [deleteCandidate, setDeleteCandidate] = useState<string | null>(null);
   const [bulkDeleteCandidate, setBulkDeleteCandidate] = useState<string[]>([]);
   const [filterWell, setFilterWell] = useState<string>("");
@@ -426,7 +429,7 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: 
                   Limpar Filtros
                 </Button>
               </div>
-              {filteredKeys.length > 0 && (
+              {filteredKeys.length > 0 && userRole === 'admin' && (
                 <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-muted-foreground/20">
                   <Button variant="outline" size="sm" onClick={handleSelectAllFiltered} className="bg-background">
                     {areAllFilteredSelected ? <CheckSquare className="mr-2" /> : <Square className="mr-2"/>}
@@ -477,12 +480,14 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: 
                   <AccordionItem value={key} key={key} className={cn(overflowWarning && "bg-red-50/50 rounded-md")}>
                      <div className="flex w-full items-center justify-between border-b">
                         <div className="flex items-center gap-2 flex-1 pl-4">
-                          <Checkbox
-                             id={`select-${key}`}
-                             checked={selectedKeys.has(key)}
-                             onCheckedChange={() => handleToggleSelect(key)}
-                             aria-label={`Selecionar ${formattedDate}`}
-                           />
+                          {userRole === 'admin' && (
+                            <Checkbox
+                               id={`select-${key}`}
+                               checked={selectedKeys.has(key)}
+                               onCheckedChange={() => handleToggleSelect(key)}
+                               aria-label={`Selecionar ${formattedDate}`}
+                             />
+                          )}
                           <AccordionTrigger className="flex-1 border-b-0 py-4 pr-0 pl-2 text-left hover:no-underline">
                             <div className="flex flex-col items-start">
                               <span>{formattedDate}</span>
@@ -504,9 +509,11 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: 
                           <Button variant="ghost" size="icon" onClick={() => onEdit(key)}>
                             <Pencil className="h-4 w-4 text-blue-500" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(key)}>
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
+                          {userRole === 'admin' && (
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteCandidate(key)}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     <AccordionContent>
@@ -552,37 +559,43 @@ export default function MonthlyReport({ data, onEdit, onDelete, onBulkDelete }: 
           )}
         </CardContent>
       </Card>
-      <AlertDialog open={!!deleteCandidate} onOpenChange={(open) => !open && setDeleteCandidate(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso excluirá permanentemente o
-              lançamento do dia {deleteCandidateDate && format(parseISO(deleteCandidateDate), "dd/MM/yyyy", { locale: ptBR })}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteCandidate(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className={cn(buttonVariants({variant: "destructive"}))}>Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {userRole === 'admin' && (
+        <>
+          <AlertDialog open={!!deleteCandidate} onOpenChange={(open) => !open && setDeleteCandidate(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Essa ação não pode ser desfeita. Isso excluirá permanentemente o
+                  lançamento do dia {deleteCandidateDate && format(parseISO(deleteCandidateDate), "dd/MM/yyyy", { locale: ptBR })}.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeleteCandidate(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className={cn(buttonVariants({variant: "destructive"}))}>Excluir</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-      <AlertDialog open={bulkDeleteCandidate.length > 0} onOpenChange={(open) => !open && setBulkDeleteCandidate([])}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso excluirá permanentemente
-              os {bulkDeleteCandidate.length} lançamentos selecionados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setBulkDeleteCandidate([])}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmBulkDelete} className={cn(buttonVariants({variant: "destructive"}))}>Excluir {bulkDeleteCandidate.length} Itens</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <AlertDialog open={bulkDeleteCandidate.length > 0} onOpenChange={(open) => !open && setBulkDeleteCandidate([])}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Essa ação não pode ser desfeita. Isso excluirá permanentemente
+                  os {bulkDeleteCandidate.length} lançamentos selecionados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setBulkDeleteCandidate([])}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmBulkDelete} className={cn(buttonVariants({variant: "destructive"}))}>Excluir {bulkDeleteCandidate.length} Itens</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </>
   );
 }
+
+    

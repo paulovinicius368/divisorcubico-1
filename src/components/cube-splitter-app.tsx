@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback }from "react";
+import { useState, useEffect } from "react";
 import { collection, onSnapshot, doc, setDoc, deleteDoc, query, orderBy, writeBatch } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
@@ -9,12 +9,11 @@ import { db, auth } from "@/lib/firebase";
 
 import type { AllocateHourlyVolumeOutput } from "@/ai/flows/allocate-hourly-volume";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Cuboid, LogOut } from "lucide-react";
 import DailyAllocation from "@/components/daily-allocation";
 import MonthlyReport from "@/components/monthly-report";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
-import { Button } from "./ui/button";
+import type { UserRole } from "@/hooks/use-role";
 
 export type MonthlyData = Record<
   string, // Unique key, e.g., "YYYY-MM-DD-WELLNAME"
@@ -28,7 +27,11 @@ export type MonthlyData = Record<
   }
 >;
 
-export default function CubeSplitterApp() {
+type CubeSplitterAppProps = {
+  userRole: UserRole;
+}
+
+export default function CubeSplitterApp({ userRole }: CubeSplitterAppProps) {
   const [monthlyData, setMonthlyData] = useState<MonthlyData>({});
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("daily");
@@ -78,6 +81,14 @@ export default function CubeSplitterApp() {
 
       // If it's an edit and the key has changed (date or well), delete the old document
       if (originalKey && originalKey !== newKey) {
+        if (userRole !== 'admin') {
+           toast({
+            title: "Permissão Negada",
+            description: "Você não tem permissão para alterar a chave de um lançamento (data ou poço).",
+            variant: "destructive",
+          });
+          return false;
+        }
         const oldDocRef = doc(db, "allocations", originalKey);
         batch.delete(oldDocRef);
       }
@@ -122,6 +133,15 @@ export default function CubeSplitterApp() {
 
 
   const handleDeleteDay = async (key: string) => {
+    if (userRole !== 'admin') {
+      toast({
+        title: "Permissão Negada",
+        description: "Você não tem permissão para excluir lançamentos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const entryDate = monthlyData[key]?.date;
     try {
       await deleteDoc(doc(db, "allocations", key));
@@ -141,6 +161,14 @@ export default function CubeSplitterApp() {
   };
 
   const handleBulkDelete = async (keys: string[]) => {
+     if (userRole !== 'admin') {
+      toast({
+        title: "Permissão Negada",
+        description: "Você não tem permissão para excluir lançamentos.",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       const batch = writeBatch(db);
       keys.forEach(key => {
@@ -173,11 +201,6 @@ export default function CubeSplitterApp() {
     setEditKey(null);
     setActiveTab("monthly");
   };
-
-  const handleLogout = async () => {
-    await auth.signOut();
-    router.push('/login');
-  };
   
   const renderLoadingSkeleton = () => (
     <div className="pt-6">
@@ -191,33 +214,12 @@ export default function CubeSplitterApp() {
     </div>
   );
 
+  if (!user) {
+    return null;
+  }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 md:p-8">
-      <header className="mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 self-start">
-          <Cuboid className="h-10 w-10 text-primary" />
-          <div>
-            <h1 className="font-headline text-3xl font-bold tracking-tight text-primary md:text-4xl">
-              DivisorCubico
-            </h1>
-            <p className="text-muted-foreground">Divisor de Volume Hídrico</p>
-          </div>
-        </div>
-        {user && (
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-            <div className="text-right flex-grow">
-              <p className="text-sm font-medium">Olá, {user.displayName || user.email}</p>
-               <p className="text-xs text-muted-foreground">Usuário</p>
-            </div>
-            <Button variant="outline" size="icon" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-              <span className="sr-only">Sair</span>
-            </Button>
-          </div>
-        )}
-      </header>
-
+    <>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
           <TabsTrigger value="daily">Alocação Diária</TabsTrigger>
@@ -240,10 +242,13 @@ export default function CubeSplitterApp() {
               onEdit={handleEditDay}
               onDelete={handleDeleteDay}
               onBulkDelete={handleBulkDelete}
+              userRole={userRole}
             />
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </>
   );
 }
+
+    
