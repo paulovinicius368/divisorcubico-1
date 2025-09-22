@@ -92,18 +92,6 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col items-center justify-center text-sm">
-            <Separator className="mb-4" />
-            <p className="text-muted-foreground">
-                Não tem uma conta?{' '}
-                <Link
-                  href="/signup"
-                  className="underline underline-offset-4 hover:text-primary"
-                >
-                  Crie um novo usuário
-                </Link>
-            </p>
-        </CardFooter>
       </Card>
     </div>
   );
